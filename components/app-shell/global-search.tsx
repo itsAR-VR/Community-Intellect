@@ -12,7 +12,6 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { Button } from "@/components/ui/button"
-import { mockMembers, mockDrafts } from "@/lib/mock-data"
 import type { TenantId } from "@/lib/types"
 
 interface GlobalSearchProps {
@@ -21,6 +20,10 @@ interface GlobalSearchProps {
 
 export function GlobalSearch({ tenantId }: GlobalSearchProps) {
   const [open, setOpen] = React.useState(false)
+  const [members, setMembers] = React.useState<
+    Array<{ id: string; firstName: string; lastName: string; email: string; company: { name: string; role: string } }>
+  >([])
+  const [drafts, setDrafts] = React.useState<Array<{ id: string; memberId: string; actionType: string; content: string }>>([])
   const router = useRouter()
 
   React.useEffect(() => {
@@ -34,11 +37,19 @@ export function GlobalSearch({ tenantId }: GlobalSearchProps) {
     return () => document.removeEventListener("keydown", down)
   }, [])
 
-  const members = mockMembers.filter((m) => m.tenantId === tenantId)
-  const drafts = mockDrafts.filter((d) => {
-    const member = mockMembers.find((m) => m.id === d.memberId)
-    return member?.tenantId === tenantId
-  })
+  React.useEffect(() => {
+    if (!open) return
+    void (async () => {
+      const res = await fetch(`/app/api/search?tenantId=${encodeURIComponent(tenantId)}`, { cache: "no-store" })
+      if (!res.ok) return
+      const json = (await res.json()) as {
+        members: typeof members
+        drafts: typeof drafts
+      }
+      setMembers(json.members ?? [])
+      setDrafts(json.drafts ?? [])
+    })()
+  }, [open, tenantId])
 
   return (
     <>
@@ -87,10 +98,9 @@ export function GlobalSearch({ tenantId }: GlobalSearchProps) {
           </CommandGroup>
           <CommandGroup heading="Pending Drafts">
             {drafts
-              .filter((d) => d.status === "pending")
               .slice(0, 3)
               .map((draft) => {
-                const member = mockMembers.find((m) => m.id === draft.memberId)
+                const member = members.find((m) => m.id === draft.memberId)
                 return (
                   <CommandItem
                     key={draft.id}

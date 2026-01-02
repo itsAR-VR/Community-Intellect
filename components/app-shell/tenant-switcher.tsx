@@ -8,17 +8,13 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import type { TenantId } from "@/lib/types"
 
-const tenants = [
-  { value: "b2b" as TenantId, label: "B2B CMO Club" },
-  { value: "founders" as TenantId, label: "Founders Club" },
-]
-
 interface TenantSwitcherProps {
   value: TenantId
+  tenants: Array<{ value: TenantId; label: string }>
   onValueChange: (value: TenantId) => void
 }
 
-export function TenantSwitcher({ value, onValueChange }: TenantSwitcherProps) {
+export function TenantSwitcher({ value, tenants, onValueChange }: TenantSwitcherProps) {
   const [open, setOpen] = React.useState(false)
   const currentTenant = tenants.find((t) => t.value === value)
 

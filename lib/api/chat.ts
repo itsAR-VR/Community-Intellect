@@ -1,14 +1,25 @@
-import { mockChatThreads } from "../mock-data"
-import type { ChatThread, ChatMessage, TenantId } from "../types"
+import "server-only"
+
+import type { ChatMessage, ChatThread, TenantId } from "@/lib/types"
+import {
+  appendChatMessage,
+  createChatThread as dbCreateChatThread,
+  getChatThreadById as dbGetChatThreadById,
+  getChatThreads as dbGetChatThreads,
+} from "@/lib/data"
+import { requireWhoami } from "@/lib/auth/whoami"
 
 export async function getChatThreads(tenantId: TenantId): Promise<ChatThread[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  return mockChatThreads.filter((t) => t.tenantId === tenantId)
+  return dbGetChatThreads(tenantId)
 }
 
 export async function getChatThreadById(id: string): Promise<ChatThread | null> {
-  await new Promise((resolve) => setTimeout(resolve, 50))
-  return mockChatThreads.find((t) => t.id === id) ?? null
+  const whoami = await requireWhoami()
+  for (const t of whoami.tenants) {
+    const thread = await dbGetChatThreadById(t.id, id)
+    if (thread) return thread
+  }
+  return null
 }
 
 export async function createChatThread(
@@ -16,26 +27,26 @@ export async function createChatThread(
   title: string,
   context?: ChatThread["context"],
 ): Promise<ChatThread> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  return {
-    id: `chat_${Date.now()}`,
-    tenantId,
-    title,
-    context,
-    messages: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }
+  return dbCreateChatThread({ tenantId, title, context })
 }
 
 export async function addMessageToThread(
   threadId: string,
   message: Omit<ChatMessage, "id" | "createdAt">,
 ): Promise<ChatMessage> {
-  await new Promise((resolve) => setTimeout(resolve, 50))
-  return {
-    ...message,
-    id: `msg_${Date.now()}`,
-    createdAt: new Date().toISOString(),
+  const whoami = await requireWhoami()
+  for (const t of whoami.tenants) {
+    const thread = await dbGetChatThreadById(t.id, threadId)
+    if (!thread) continue
+    return appendChatMessage({
+      tenantId: t.id,
+      threadId,
+      role: message.role,
+      content: message.content,
+      evidence: message.evidence,
+      suggestedActions: message.suggestedActions,
+    })
   }
+
+  throw new Error("Thread not found")
 }

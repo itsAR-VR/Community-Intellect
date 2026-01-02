@@ -13,15 +13,17 @@ import {
   FileText,
   Pencil,
 } from "lucide-react"
-import type { SignalSource } from "@/lib/types"
+import type { FactProvenance, SignalSource } from "@/lib/types"
+
+type SourceBadgeSource = SignalSource | FactProvenance
 
 interface SourceBadgeProps {
-  source: SignalSource
+  source: SourceBadgeSource
   size?: "sm" | "default"
 }
 
 const sourceConfig: Record<
-  SignalSource,
+  SourceBadgeSource,
   { label: string; icon: React.ComponentType<{ className?: string }>; className: string }
 > = {
   slack: {
@@ -73,6 +75,11 @@ const sourceConfig: Record<
     label: "Manual",
     icon: Pencil,
     className: "bg-muted text-muted-foreground border-muted",
+  },
+  external: {
+    label: "External",
+    icon: Search,
+    className: "bg-foreground/10 text-foreground border-foreground/20",
   },
 }
 

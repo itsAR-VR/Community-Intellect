@@ -1,14 +1,18 @@
-import { mockPods } from "../mock-data"
-import type { Pod, TenantId } from "../types"
+import "server-only"
+
+import type { Pod, TenantId } from "@/lib/types"
+import { getPods as dbGetPods } from "@/lib/data"
+import { requireWhoami } from "@/lib/auth/whoami"
 
 export async function getPods(tenantId: TenantId): Promise<Pod[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  return mockPods.filter((p) => p.tenantId === tenantId)
+  return dbGetPods(tenantId)
 }
 
 export async function getPodByMember(memberId: string): Promise<Pod | null> {
-  await new Promise((resolve) => setTimeout(resolve, 50))
-  return mockPods.find((p) => p.memberIds.includes(memberId)) ?? null
+  const whoami = await requireWhoami()
+  const results = await Promise.all(whoami.tenants.map((t) => dbGetPods(t.id)))
+  const pods = results.flat()
+  return pods.find((p) => p.memberIds.includes(memberId)) ?? null
 }
 
 export async function getPodsWithQuietMembers(tenantId: TenantId): Promise<Pod[]> {

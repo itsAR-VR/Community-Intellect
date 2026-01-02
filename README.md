@@ -1,30 +1,60 @@
-# B2B CMO Club AI
+# Community Intellect (B2B CMO Club AI)
 
-*Automatically synced with your [v0.app](https://v0.app) deployments*
+Next.js 16 (App Router) + React 19 + Tailwind v4 + shadcn/ui, backed by Supabase (Postgres + Auth + RLS) and OpenAI.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/ars-projects/v0-b2-b-cmo-club-ai)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/ciNXY4nSrS5)
+## Local Setup
 
-## Overview
+```bash
+pnpm install
+cp .env.example .env.local
+pnpm dev
+```
 
-This repository will stay in sync with your deployed chats on [v0.app](https://v0.app).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.app](https://v0.app).
+Open `http://localhost:3000`, sign in at `/login`, and you should land on `/app/b2b/overview`.
 
-## Deployment
+## Supabase (DB + Auth)
 
-Your project is live at:
+### 1) Create a Supabase project
 
-**[https://vercel.com/ars-projects/v0-b2-b-cmo-club-ai](https://vercel.com/ars-projects/v0-b2-b-cmo-club-ai)**
+- Create a project in Supabase.
+- Copy your project URL and keys into `.env.local`.
 
-## Build your app
+### 2) Apply schema + RLS
 
-Continue building your app on:
+- Run `supabase/migrations/0001_init.sql` in the Supabase SQL editor (or via the Supabase CLI if you use it).
 
-**[https://v0.app/chat/ciNXY4nSrS5](https://v0.app/chat/ciNXY4nSrS5)**
+This creates tenant-scoped tables (members, facts, signals, drafts, etc), enables RLS, and adds RBAC policies via `public.profiles` + `public.tenant_users`.
 
-## How It Works
+### 3) Seed dev data (from `lib/mock-data.ts`)
 
-1. Create and modify your project using [v0.app](https://v0.app)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+```bash
+pnpm db:seed
+```
+
+- Requires `SUPABASE_SERVICE_ROLE_KEY` (server-only) in `.env.local`.
+- Optional: set `SEED_ADMIN_EMAIL` + `SEED_ADMIN_PASSWORD` to create an admin user and grant access to seeded tenants.
+- To wipe and reseed:
+
+```bash
+pnpm db:seed:force
+```
+
+## Auth + RBAC
+
+- Supabase Auth is used for sessions.
+- User roles come from `public.profiles.role` (`admin` | `community_manager` | `read_only`).
+- Tenant access comes from `public.tenant_users`.
+- `/app/*` is protected by `middleware.ts`.
+
+## AI
+
+AI routes live under `app/app/api/ai/*` and are routed by task:
+
+- `OPENAI_MODEL_LIGHT` → `gpt-5-nano` (classification/tagging)
+- `OPENAI_MODEL_STANDARD` → `gpt-5-mini` (drafting/summaries)
+- `OPENAI_MODEL_COMPLEX` → `gpt-5.1` (AI chat / deeper synthesis)
+
+## Deploy (Vercel)
+
+- Set all variables from `.env.example` in Vercel Project Settings.
+- Do **not** expose `SUPABASE_SERVICE_ROLE_KEY` or `OPENAI_API_KEY` to the client.

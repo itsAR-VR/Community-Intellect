@@ -1,5 +1,7 @@
-import { mockAuditLogs } from "../mock-data"
-import type { AuditLogEntry, AuditEventType, TenantId } from "../types"
+import "server-only"
+
+import type { AuditEventType, AuditLogEntry, TenantId } from "@/lib/types"
+import { createAuditEntry as dbCreateAuditEntry, getAuditLogs as dbGetAuditLogs } from "@/lib/data"
 
 export async function getAuditLogs(
   tenantId: TenantId,
@@ -11,8 +13,7 @@ export async function getAuditLogs(
     endDate?: string
   },
 ): Promise<AuditLogEntry[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  let logs = mockAuditLogs.filter((l) => l.tenantId === tenantId)
+  let logs = await dbGetAuditLogs(tenantId)
 
   if (filters?.type) {
     logs = logs.filter((l) => l.type === filters.type)
@@ -34,10 +35,5 @@ export async function getAuditLogs(
 }
 
 export async function createAuditEntry(entry: Omit<AuditLogEntry, "id" | "createdAt">): Promise<AuditLogEntry> {
-  await new Promise((resolve) => setTimeout(resolve, 50))
-  return {
-    ...entry,
-    id: `audit_${Date.now()}`,
-    createdAt: new Date().toISOString(),
-  }
+  return dbCreateAuditEntry(entry)
 }

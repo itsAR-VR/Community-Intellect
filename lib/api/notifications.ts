@@ -1,17 +1,20 @@
-import { mockNotifications } from "../mock-data"
-import type { NotificationItem } from "../types"
+import "server-only"
+
+import type { NotificationItem } from "@/lib/types"
+import { getNotifications as dbGetNotifications, markNotificationRead as dbMarkNotificationRead } from "@/lib/data"
+import { requireWhoami } from "@/lib/auth/whoami"
 
 export async function getNotifications(unreadOnly = false): Promise<NotificationItem[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  if (unreadOnly) {
-    return mockNotifications.filter((n) => !n.read)
-  }
-  return mockNotifications
+  const whoami = await requireWhoami()
+  const results = await Promise.all(whoami.tenants.map((t) => dbGetNotifications(t.id, unreadOnly)))
+  return results
+    .flat()
+    .filter((n) => (unreadOnly ? !n.read : true))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 50))
-  // In real implementation, this would update the database
+  await dbMarkNotificationRead(id)
 }
 
 export async function getUnreadCount(): Promise<number> {

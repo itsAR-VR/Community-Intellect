@@ -1,24 +1,24 @@
-import { mockOpportunities, getOpportunitiesByMember as getMockOpportunitiesByMember } from "../mock-data"
-import type { OpportunityItem } from "../types"
+import "server-only"
+
+import type { OpportunityItem } from "@/lib/types"
+import {
+  dismissOpportunity as dbDismissOpportunity,
+  getOpportunities as dbGetOpportunities,
+  getOpportunitiesByMember as dbGetOpportunitiesByMember,
+} from "@/lib/data"
+import { requireWhoami } from "@/lib/auth/whoami"
 
 export async function getOpportunities(): Promise<OpportunityItem[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  return mockOpportunities.filter((o) => !o.dismissed)
+  const whoami = await requireWhoami()
+  const results = await Promise.all(whoami.tenants.map((t) => dbGetOpportunities(t.id)))
+  return results.flat().filter((o) => !o.dismissed)
 }
 
 export async function getOpportunitiesByMember(memberId: string): Promise<OpportunityItem[]> {
-  await new Promise((resolve) => setTimeout(resolve, 50))
-  return getMockOpportunitiesByMember(memberId).filter((o) => !o.dismissed)
+  const items = await dbGetOpportunitiesByMember(memberId)
+  return items.filter((o) => !o.dismissed)
 }
 
 export async function dismissOpportunity(id: string, dismissedBy: string): Promise<OpportunityItem | null> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  const opp = mockOpportunities.find((o) => o.id === id)
-  if (!opp) return null
-  return {
-    ...opp,
-    dismissed: true,
-    dismissedAt: new Date().toISOString(),
-    dismissedBy,
-  }
+  return dbDismissOpportunity(id, dismissedBy)
 }

@@ -1,37 +1,43 @@
-import { mockDrafts, getDraftsByMember as getMockDraftsByMember } from "../mock-data"
-import type { MessageDraft, DraftStatus } from "../types"
+import "server-only"
+
+import type { DraftStatus, MessageDraft } from "@/lib/types"
+import {
+  getDraftById as dbGetDraftById,
+  getDrafts as dbGetDrafts,
+  getDraftsByMember as dbGetDraftsByMember,
+  updateDraft as dbUpdateDraft,
+} from "@/lib/data"
+import { requireWhoami } from "@/lib/auth/whoami"
 
 export async function getDrafts(status?: DraftStatus): Promise<MessageDraft[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  if (status) {
-    return mockDrafts.filter((d) => d.status === status)
-  }
-  return mockDrafts
+  const whoami = await requireWhoami()
+  const results = await Promise.all(whoami.tenants.map((t) => dbGetDrafts(t.id, status)))
+  return results.flat()
 }
 
 export async function getDraftsByMember(memberId: string): Promise<MessageDraft[]> {
-  await new Promise((resolve) => setTimeout(resolve, 50))
-  return getMockDraftsByMember(memberId)
+  return dbGetDraftsByMember(memberId)
 }
 
 export async function getDraftById(id: string): Promise<MessageDraft | null> {
-  await new Promise((resolve) => setTimeout(resolve, 50))
-  return mockDrafts.find((d) => d.id === id) ?? null
+  return dbGetDraftById(id)
 }
 
 export async function updateDraft(id: string, updates: Partial<MessageDraft>): Promise<MessageDraft | null> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  const draft = mockDrafts.find((d) => d.id === id)
-  if (!draft) return null
-  return { ...draft, ...updates, editedAt: new Date().toISOString() }
+  const whoami = await requireWhoami()
+  return dbUpdateDraft(id, updates, whoami.user.id)
 }
 
 export async function sendDraft(id: string, sentBy: string): Promise<MessageDraft | null> {
-  return updateDraft(id, {
-    status: "sent",
-    sentAt: new Date().toISOString(),
+  return dbUpdateDraft(
+    id,
+    {
+      status: "sent",
+      sentAt: new Date().toISOString(),
+      sentBy,
+    },
     sentBy,
-  })
+  )
 }
 
 export async function getPendingDrafts(): Promise<MessageDraft[]> {

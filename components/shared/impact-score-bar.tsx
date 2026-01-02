@@ -5,9 +5,10 @@ interface ImpactScoreBarProps {
   score: number
   showLabel?: boolean
   size?: "sm" | "default"
+  className?: string
 }
 
-export function ImpactScoreBar({ score, showLabel = true, size = "default" }: ImpactScoreBarProps) {
+export function ImpactScoreBar({ score, showLabel = true, size = "default", className }: ImpactScoreBarProps) {
   const getColor = (score: number) => {
     if (score >= 70) return "bg-success"
     if (score >= 40) return "bg-warning"
@@ -18,7 +19,7 @@ export function ImpactScoreBar({ score, showLabel = true, size = "default" }: Im
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="flex items-center gap-2">
+          <div className={cn("flex items-center gap-2", className)}>
             <div className={cn("h-2 rounded-full bg-muted overflow-hidden", size === "sm" ? "w-16" : "w-24")}>
               <div
                 className={cn("h-full rounded-full transition-all", getColor(score))}

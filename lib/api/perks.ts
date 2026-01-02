@@ -1,29 +1,39 @@
-import { mockPerks, mockPerkRecommendations, mockPerkPartnerApplications } from "../mock-data"
-import type { Perk, PerkRecommendation, PerkPartnerApplication, TenantId, PartnerApplicationStatus } from "../types"
+import "server-only"
+
+import type { PartnerApplicationStatus, Perk, PerkPartnerApplication, PerkRecommendation, TenantId } from "@/lib/types"
+import {
+  getMemberById,
+  getPerkPartnerApplications,
+  getPerkRecommendations as dbGetPerkRecommendations,
+  getPerks as dbGetPerks,
+  updatePartnerApplicationStatus as dbUpdatePartnerApplicationStatus,
+} from "@/lib/data"
+import { requireWhoami } from "@/lib/auth/whoami"
 
 export async function getPerks(tenantId: TenantId): Promise<Perk[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  return mockPerks.filter((p) => p.tenantId === tenantId && p.active)
+  const perks = await dbGetPerks(tenantId)
+  return perks.filter((p) => p.active)
 }
 
 export async function getPerkRecommendations(memberId?: string): Promise<PerkRecommendation[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
   if (memberId) {
-    return mockPerkRecommendations.filter((r) => r.memberId === memberId && !r.dismissed)
+    const member = await getMemberById(memberId)
+    if (!member) return []
+    const recs = await dbGetPerkRecommendations(member.tenantId, memberId)
+    return recs.filter((r) => !r.dismissed)
   }
-  return mockPerkRecommendations.filter((r) => !r.dismissed)
+
+  const whoami = await requireWhoami()
+  const results = await Promise.all(whoami.tenants.map((t) => dbGetPerkRecommendations(t.id)))
+  return results.flat().filter((r) => !r.dismissed)
 }
 
 export async function getPartnerApplications(
   tenantId: TenantId,
   status?: PartnerApplicationStatus,
 ): Promise<PerkPartnerApplication[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  let apps = mockPerkPartnerApplications.filter((a) => a.tenantId === tenantId)
-  if (status) {
-    apps = apps.filter((a) => a.status === status)
-  }
-  return apps
+  const apps = await getPerkPartnerApplications(tenantId)
+  return status ? apps.filter((a) => a.status === status) : apps
 }
 
 export async function updatePartnerApplicationStatus(
@@ -31,13 +41,5 @@ export async function updatePartnerApplicationStatus(
   status: PartnerApplicationStatus,
   reviewedBy: string,
 ): Promise<PerkPartnerApplication | null> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  const app = mockPerkPartnerApplications.find((a) => a.id === id)
-  if (!app) return null
-  return {
-    ...app,
-    status,
-    reviewedBy,
-    reviewedAt: new Date().toISOString(),
-  }
+  return dbUpdatePartnerApplicationStatus({ id, status, reviewedBy })
 }

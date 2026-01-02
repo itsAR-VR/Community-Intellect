@@ -2362,8 +2362,8 @@ export const mockWrapped: MemberWrapped[] = mockMembers.slice(0, 10).map((member
     riskTier: "yellow" as const,
   },
   currentSnapshot: {
-    goals: member.truthProfile?.goals ?? ["Continue growth", "Optimize operations"],
-    bottlenecks: member.truthProfile?.bottlenecks ?? ["Market conditions"],
+    goals: member.tags.length > 0 ? member.tags.slice(0, 3) : ["Continue growth", "Optimize operations"],
+    bottlenecks: ["Market conditions"],
     riskTier: member.riskTier,
   },
   highlights: {

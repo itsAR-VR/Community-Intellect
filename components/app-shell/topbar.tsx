@@ -26,18 +26,16 @@ interface TopbarProps {
 }
 
 export function Topbar({ tenantId, children }: TopbarProps) {
-  const { user, switchTenant, logout } = useAuth()
+  const { user, tenants, logout } = useAuth()
   const { theme, setTheme } = useTheme()
   const router = useRouter()
 
   const handleTenantChange = (newTenantId: TenantId) => {
-    switchTenant(newTenantId)
     router.push(`/app/${newTenantId}/overview`)
   }
 
   const handleLogout = () => {
-    logout()
-    router.push("/login")
+    void logout()
   }
 
   return (
@@ -45,14 +43,18 @@ export function Topbar({ tenantId, children }: TopbarProps) {
       {children}
 
       <div className="flex flex-1 items-center gap-4">
-        <TenantSwitcher value={tenantId} onValueChange={handleTenantChange} />
+        <TenantSwitcher
+          value={tenantId}
+          tenants={tenants.map((t) => ({ value: t.id, label: t.name }))}
+          onValueChange={handleTenantChange}
+        />
         <div className="flex-1 md:max-w-md">
           <GlobalSearch tenantId={tenantId} />
         </div>
       </div>
 
       <div className="flex items-center gap-2">
-        <Notifications />
+        <Notifications tenantId={tenantId} />
 
         <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
           <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />

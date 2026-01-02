@@ -1,24 +1,25 @@
-import { mockSignals, getSignalsByMember as getMockSignalsByMember } from "../mock-data"
-import type { ExternalSignal } from "../types"
+import "server-only"
+
+import type { ExternalSignal, TenantId } from "../types"
+import { getSignalsByMember as dbGetSignalsByMember, getSignalsForTenant as dbGetSignalsForTenant } from "@/lib/data"
 
 export async function getSignalsByMember(memberId: string): Promise<ExternalSignal[]> {
-  await new Promise((resolve) => setTimeout(resolve, 50))
-  return getMockSignalsByMember(memberId)
+  return dbGetSignalsByMember(memberId)
 }
 
-export async function getAllSignals(): Promise<ExternalSignal[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  return mockSignals
+export async function getAllSignals(tenantId: TenantId): Promise<ExternalSignal[]> {
+  return dbGetSignalsForTenant(tenantId)
 }
 
-export async function getRecentSignals(hours = 24): Promise<ExternalSignal[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
+export async function getRecentSignals(tenantId: TenantId, hours = 24): Promise<ExternalSignal[]> {
+  const all = await dbGetSignalsForTenant(tenantId)
   const cutoff = new Date()
   cutoff.setHours(cutoff.getHours() - hours)
-  return mockSignals.filter((s) => new Date(s.createdAt) > cutoff)
+  return all.filter((s) => new Date(s.createdAt) > cutoff)
 }
 
-export async function getHighUrgencySignals(minUrgency = 8): Promise<ExternalSignal[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  return mockSignals.filter((s) => s.urgency >= minUrgency)
+export async function getHighUrgencySignals(tenantId: TenantId, minUrgency = 8): Promise<ExternalSignal[]> {
+  const all = await dbGetSignalsForTenant(tenantId)
+  return all.filter((s) => s.urgency >= minUrgency)
 }
+

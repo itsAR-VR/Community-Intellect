@@ -1,23 +1,18 @@
-import { getMemberById as getMockMemberById, getMembersByTenant } from "../mock-data"
+import "server-only"
+
 import type { Member, TenantId } from "../types"
+import { getMemberById as dbGetMemberById, getMembers as dbGetMembers, updateMember as dbUpdateMember } from "@/lib/data"
 
 export async function getMembers(tenantId: TenantId): Promise<Member[]> {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  return getMembersByTenant(tenantId)
+  return dbGetMembers(tenantId)
 }
 
 export async function getMemberById(id: string): Promise<Member | null> {
-  await new Promise((resolve) => setTimeout(resolve, 50))
-  return getMockMemberById(id) ?? null
+  return dbGetMemberById(id)
 }
 
 export async function updateMember(id: string, updates: Partial<Member>): Promise<Member | null> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  const member = getMockMemberById(id)
-  if (!member) return null
-  // In real implementation, this would update the database
-  return { ...member, ...updates, updatedAt: new Date().toISOString() }
+  return dbUpdateMember(id, updates)
 }
 
 export async function getMembersNeedingAttention(tenantId: TenantId): Promise<Member[]> {

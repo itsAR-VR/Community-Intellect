@@ -1,4 +1,6 @@
 "use client"
+import * as React from "react"
+
 import Link from "next/link"
 import { Bell, AlertTriangle, AlertCircle, Clock, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -12,7 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { mockNotifications } from "@/lib/mock-data"
+import type { NotificationItem, TenantId } from "@/lib/types"
+import { toast } from "@/hooks/use-toast"
 import { formatDistanceToNow } from "date-fns"
 
 const iconMap = {
@@ -31,8 +34,34 @@ const colorMap = {
   renewal_alert: "text-warning",
 }
 
-export function Notifications() {
-  const unreadCount = mockNotifications.filter((n) => !n.read).length
+export function Notifications({ tenantId }: { tenantId: TenantId }) {
+  const [notifications, setNotifications] = React.useState<NotificationItem[]>([])
+
+  const load = React.useCallback(async () => {
+    const res = await fetch(`/app/api/notifications?tenantId=${encodeURIComponent(tenantId)}`, { cache: "no-store" })
+    if (!res.ok) return
+    const json = (await res.json()) as { notifications: NotificationItem[] }
+    setNotifications(json.notifications ?? [])
+  }, [tenantId])
+
+  React.useEffect(() => {
+    void load()
+  }, [load])
+
+  const unreadCount = notifications.filter((n) => !n.read).length
+
+  const markRead = async (notificationId: string) => {
+    const res = await fetch("/app/api/notifications/mark-read", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ tenantId, notificationId }),
+    })
+    if (!res.ok) {
+      toast({ title: "Failed to mark read" })
+      return
+    }
+    setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n)))
+  }
 
   return (
     <DropdownMenu>
@@ -61,16 +90,20 @@ export function Notifications() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <ScrollArea className="h-80">
-          {mockNotifications.length === 0 ? (
+          {notifications.length === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">No notifications</div>
           ) : (
-            mockNotifications.map((notification) => {
+            notifications.map((notification) => {
               const Icon = iconMap[notification.type]
               const colorClass = colorMap[notification.type]
 
               return (
                 <DropdownMenuItem key={notification.id} asChild>
-                  <Link href={notification.actionUrl ?? "#"} className="flex items-start gap-3 p-3 cursor-pointer">
+                  <Link
+                    href={notification.actionUrl ?? "#"}
+                    className="flex items-start gap-3 p-3 cursor-pointer"
+                    onClick={() => void markRead(notification.id)}
+                  >
                     <Icon className={`h-5 w-5 mt-0.5 shrink-0 ${colorClass}`} />
                     <div className="flex-1 space-y-1">
                       <p

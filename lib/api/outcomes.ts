@@ -1,31 +1,43 @@
-import { mockOutcomeFeedback, mockInteractionLogs } from "../mock-data"
-import type { OutcomeFeedback, InteractionLog } from "../types"
+import "server-only"
+
+import type { InteractionLog, OutcomeFeedback } from "@/lib/types"
+import {
+  getEscalatedOutcomeFeedbackForTenant,
+  getInteractionLogsByMember,
+  getMemberById,
+  getOutcomeFeedbackByMember,
+  getOutcomeFeedbackForTenant,
+  submitOutcome as dbSubmitOutcome,
+} from "@/lib/data"
+import { requireWhoami } from "@/lib/auth/whoami"
 
 export async function getOutcomes(memberId?: string): Promise<OutcomeFeedback[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  if (memberId) {
-    return mockOutcomeFeedback.filter((o) => o.memberId === memberId)
-  }
-  return mockOutcomeFeedback
+  if (memberId) return getOutcomeFeedbackByMember(memberId)
+  const whoami = await requireWhoami()
+  const results = await Promise.all(whoami.tenants.map((t) => getOutcomeFeedbackForTenant(t.id)))
+  return results.flat()
 }
 
 export async function getInteractionLogs(memberId: string): Promise<InteractionLog[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  return mockInteractionLogs.filter((l) => l.memberId === memberId)
+  return getInteractionLogsByMember(memberId)
 }
 
 export async function submitOutcome(outcome: Omit<OutcomeFeedback, "id" | "createdAt">): Promise<OutcomeFeedback> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  const newOutcome: OutcomeFeedback = {
-    ...outcome,
-    id: `outcome_${Date.now()}`,
-    escalated: outcome.rating < 6,
-    createdAt: new Date().toISOString(),
-  }
-  return newOutcome
+  const member = await getMemberById(outcome.memberId)
+  if (!member) throw new Error("Unknown member")
+
+  return dbSubmitOutcome({
+    tenantId: member.tenantId,
+    memberId: outcome.memberId,
+    interactionId: outcome.interactionId,
+    rating: outcome.rating,
+    feedback: outcome.feedback,
+    escalationReason: outcome.escalationReason,
+  })
 }
 
 export async function getEscalatedOutcomes(): Promise<OutcomeFeedback[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  return mockOutcomeFeedback.filter((o) => o.escalated && !o.resolvedAt)
+  const whoami = await requireWhoami()
+  const results = await Promise.all(whoami.tenants.map((t) => getEscalatedOutcomeFeedbackForTenant(t.id)))
+  return results.flat()
 }

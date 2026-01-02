@@ -1,5 +1,11 @@
-import { mockResources } from "../mock-data"
-import type { KnowledgeResource, TenantId, ResourceType } from "../types"
+import "server-only"
+
+import type { KnowledgeResource, ResourceType, TenantId } from "@/lib/types"
+import {
+  getResourceById as dbGetResourceById,
+  getResources as dbGetResources,
+  incrementResourceViews as dbIncrementResourceViews,
+} from "@/lib/data"
 
 export async function getResources(
   tenantId: TenantId,
@@ -9,8 +15,7 @@ export async function getResources(
     search?: string
   },
 ): Promise<KnowledgeResource[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  let resources = mockResources.filter((r) => r.tenantId === tenantId)
+  let resources = await dbGetResources(tenantId)
 
   if (filters?.type) {
     resources = resources.filter((r) => r.type === filters.type)
@@ -29,11 +34,9 @@ export async function getResources(
 }
 
 export async function getResourceById(id: string): Promise<KnowledgeResource | null> {
-  await new Promise((resolve) => setTimeout(resolve, 50))
-  return mockResources.find((r) => r.id === id) ?? null
+  return dbGetResourceById(id)
 }
 
 export async function incrementResourceViews(id: string): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 50))
-  // In real implementation, this would update the database
+  await dbIncrementResourceViews(id)
 }
