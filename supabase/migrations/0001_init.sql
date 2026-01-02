@@ -470,7 +470,7 @@ create table if not exists public.chat_threads (
   tenant_id text not null references public.tenants(id) on delete cascade,
   title text not null,
   context jsonb,
-  created_by text not null default auth.uid()::text,
+  created_by text not null default coalesce(auth.uid()::text, 'system'),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -935,3 +935,4 @@ using (public.has_tenant_access(tenant_id) and public.is_writer())
 with check (public.has_tenant_access(tenant_id) and public.is_writer());
 
 commit;
+NOTIFY pgrst, 'reload schema';
