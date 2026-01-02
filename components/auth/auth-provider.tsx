@@ -33,11 +33,11 @@ export function AuthProvider({ initialWhoami, children }: { initialWhoami: Whoam
   }, [])
 
   const logout = React.useCallback(async () => {
-    await supabase.auth.signOut()
+    if (supabase) await supabase.auth.signOut()
     setWhoami(null)
     router.push("/login")
     router.refresh()
-  }, [router, supabase.auth])
+  }, [router, supabase])
 
   const role = whoami?.user.role ?? null
   const canEdit = role === "admin" || role === "community_manager"
@@ -65,4 +65,3 @@ export function useAuthContext() {
   if (!ctx) throw new Error("useAuthContext must be used within <AuthProvider />")
   return ctx
 }
-

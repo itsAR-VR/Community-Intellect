@@ -20,6 +20,11 @@ export function LoginClient({ nextUrl }: { nextUrl?: string }) {
   const handleLogin = async () => {
     setIsLoading(true)
     try {
+      if (!supabase) {
+        throw new Error(
+          "Supabase env is missing. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, then redeploy/restart.",
+        )
+      }
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
 
@@ -52,25 +57,38 @@ export function LoginClient({ nextUrl }: { nextUrl?: string }) {
           <CardDescription>Retention Intelligence Dashboard</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label>Email</Label>
-            <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" />
-          </div>
-          <div className="space-y-2">
-            <Label>Password</Label>
-            <Input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              autoComplete="current-password"
-            />
-          </div>
-          <Button onClick={() => void handleLogin()} className="w-full" disabled={isLoading || !email || !password}>
-            {isLoading ? "Signing in..." : "Continue to Dashboard"}
-          </Button>
+          <form
+            className="space-y-6"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void handleLogin()
+            }}
+          >
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" />
+            </div>
+            <div className="space-y-2">
+              <Label>Password</Label>
+              <Input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                type="password"
+                autoComplete="current-password"
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={isLoading || !email || !password || !supabase}>
+              {isLoading ? "Signing in..." : "Continue to Dashboard"}
+            </Button>
+            {!supabase && (
+              <p className="text-sm text-muted-foreground">
+                Supabase is not configured. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
+                redeploy/restart.
+              </p>
+            )}
+          </form>
         </CardContent>
       </Card>
     </div>
   )
 }
-
