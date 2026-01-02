@@ -64,6 +64,12 @@ function uniq<T>(arr: T[]) {
   return Array.from(new Set(arr))
 }
 
+function isMissingTableError(err: unknown, table: string) {
+  if (!err || typeof err !== "object") return false
+  const anyErr = err as any
+  return anyErr.code === "PGRST205" && typeof anyErr.message === "string" && anyErr.message.includes(`'public.${table}'`)
+}
+
 async function deleteAll(supabase: any, table: string, whereColumn: string) {
   const { error } = await supabase.from(table).delete().neq(whereColumn, "__never__")
   if (error) throw error
@@ -80,7 +86,23 @@ async function main() {
   const { count: tenantCount, error: tenantCountError } = await supabase
     .from("tenants")
     .select("*", { count: "exact", head: true })
-  if (tenantCountError) throw tenantCountError
+  if (tenantCountError) {
+    if (isMissingTableError(tenantCountError, "tenants")) {
+      throw new Error(
+        [
+          "Supabase table `public.tenants` was not found via the API.",
+          "This usually means the schema migration was not applied (or you're pointing at the wrong Supabase project).",
+          "",
+          "Fix:",
+          "1) In Supabase Dashboard → SQL Editor, run: `supabase/migrations/0001_init.sql`",
+          "2) If you just created tables, refresh PostgREST schema cache by running:",
+          "   NOTIFY pgrst, 'reload schema';",
+          "3) Re-run: `pnpm db:seed`",
+        ].join("\n"),
+      )
+    }
+    throw tenantCountError
+  }
 
   const force = process.argv.includes("--force")
   if ((tenantCount ?? 0) > 0 && !force) {
