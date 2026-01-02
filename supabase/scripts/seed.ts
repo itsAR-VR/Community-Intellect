@@ -1,5 +1,22 @@
-import "dotenv/config"
+import dotenv from "dotenv"
+import fs from "node:fs"
+import path from "node:path"
 import { createClient } from "@supabase/supabase-js"
+
+function loadEnv() {
+  // `dotenv/config` only loads `.env` by default, but this repo uses `.env.local`.
+  // Load `.env.local` first (higher precedence), then fall back to `.env` if present.
+  const cwd = process.cwd()
+  const candidates = [".env.local", ".env"]
+
+  for (const filename of candidates) {
+    const fullPath = path.join(cwd, filename)
+    if (!fs.existsSync(fullPath)) continue
+    dotenv.config({ path: fullPath })
+  }
+}
+
+loadEnv()
 
 import {
   mockMembers,
