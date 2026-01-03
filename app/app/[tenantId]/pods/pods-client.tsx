@@ -1,16 +1,30 @@
 "use client"
 
+import * as React from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Users2, AlertTriangle, Target } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { EmptyState } from "@/components/shared/empty-state"
+import { toast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/use-auth"
 import type { TenantId, Member, Pod } from "@/lib/types"
 
 export function PodsClient({ tenantId, members, pods }: { tenantId: TenantId; members: Member[]; pods: Pod[] }) {
+  const router = useRouter()
+  const { canEdit } = useAuth()
+  const [createOpen, setCreateOpen] = React.useState(false)
+  const [name, setName] = React.useState("")
+  const [memberIds, setMemberIds] = React.useState<string[]>([])
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   return (
     <div className="space-y-6">
@@ -19,7 +33,75 @@ export function PodsClient({ tenantId, members, pods }: { tenantId: TenantId; me
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Pods</h1>
           <p className="text-sm text-muted-foreground">Accountability pod management</p>
         </div>
-        <Button className="w-full sm:w-auto">Create Pod</Button>
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogTrigger asChild>
+            <Button className="w-full sm:w-auto" disabled={!canEdit}>
+              Create Pod
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Create Pod</DialogTitle>
+              <DialogDescription>Group members into an accountability pod.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Name</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Q1 Accountability Pod" />
+              </div>
+              <div className="space-y-2">
+                <Label>Members</Label>
+                <div className="grid gap-2 md:grid-cols-2 max-h-[240px] overflow-auto rounded-md border border-border p-3">
+                  {members.map((m) => {
+                    const checked = memberIds.includes(m.id)
+                    return (
+                      <label key={m.id} className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(next) => {
+                            const isChecked = next === true
+                            setMemberIds((prev) =>
+                              isChecked ? Array.from(new Set([...prev, m.id])) : prev.filter((id) => id !== m.id),
+                            )
+                          }}
+                        />
+                        <span className="truncate">
+                          {m.firstName} {m.lastName} — {m.company.name}
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <Button
+                disabled={!name || isSubmitting || !canEdit}
+                onClick={async () => {
+                  setIsSubmitting(true)
+                  try {
+                    const res = await fetch("/app/api/pods/create", {
+                      method: "POST",
+                      headers: { "content-type": "application/json" },
+                      body: JSON.stringify({ tenantId, name, memberIds }),
+                    })
+                    if (!res.ok) throw new Error(await res.text())
+                    toast({ title: "Pod created" })
+                    setCreateOpen(false)
+                    setName("")
+                    setMemberIds([])
+                    router.refresh()
+                  } catch (e) {
+                    toast({ title: "Failed to create pod", description: e instanceof Error ? e.message : "Unknown error" })
+                  } finally {
+                    setIsSubmitting(false)
+                  }
+                }}
+              >
+                {isSubmitting ? "Creating..." : "Create Pod"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid grid-cols-3 gap-3 md:gap-4">
@@ -73,7 +155,11 @@ export function PodsClient({ tenantId, members, pods }: { tenantId: TenantId; me
           icon={Users2}
           title="No pods created"
           description="Create accountability pods to help members achieve their goals"
-          action={<Button>Create Pod</Button>}
+          action={
+            <Button onClick={() => setCreateOpen(true)} disabled={!canEdit}>
+              Create Pod
+            </Button>
+          }
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

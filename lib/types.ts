@@ -499,6 +499,44 @@ export interface PersonaCluster {
 }
 
 // ============================================================================
+// VELOCITY (CHALLENGES)
+// ============================================================================
+
+export interface VelocityChallenge {
+  id: string
+  tenantId: TenantId
+  title: string
+  theme: string
+  participantIds: string[]
+  startDate: string // YYYY-MM-DD
+  endDate: string // YYYY-MM-DD
+  active: boolean
+  createdAt: string
+}
+
+export interface VelocityProof {
+  id: string
+  tenantId: TenantId
+  challengeId: string
+  memberId: string
+  link: string
+  description: string
+  createdAt: string
+}
+
+// ============================================================================
+// TENANT SETTINGS
+// ============================================================================
+
+export type IntegrationId = "slack" | "recall" | "linkedin" | "careers" | "indeed" | "instagram" | "x"
+
+export interface TenantSettings {
+  tenantId: TenantId
+  settings: Record<string, unknown>
+  updatedAt?: string
+}
+
+// ============================================================================
 // FORCED SUCCESS
 // ============================================================================
 
@@ -522,6 +560,7 @@ export interface ForcedSuccessItem {
 // ============================================================================
 
 export type AuditEventType =
+  | "member_created"
   | "draft_created"
   | "draft_updated"
   | "draft_sent"
@@ -535,6 +574,15 @@ export type AuditEventType =
   | "perk_created"
   | "perk_recommendation_dismissed"
   | "resource_created"
+  | "pod_created"
+  | "survey_sent"
+  | "mastermind_group_created"
+  | "mastermind_agenda_updated"
+  | "monthly_agenda_created"
+  | "monthly_agenda_updated"
+  | "settings_updated"
+  | "velocity_challenge_created"
+  | "velocity_proof_created"
   | "forced_success_added"
   | "forced_success_block_overridden"
   | "outcome_recorded"

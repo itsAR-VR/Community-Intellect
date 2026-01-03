@@ -1,6 +1,8 @@
 "use client"
 
+import * as React from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ClipboardList, Send, CheckCircle, AlertCircle, TrendingUp, TrendingDown } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -15,11 +17,41 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EmptyState } from "@/components/shared/empty-state"
+import { toast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/use-auth"
 import type { TenantId, Member, Survey } from "@/lib/types"
 import { formatDistanceToNow } from "date-fns"
 
 export function SurveysClient({ tenantId, members, surveys }: { tenantId: TenantId; members: Member[]; surveys: Survey[] }) {
+  const router = useRouter()
+  const { canEdit } = useAuth()
+
+  const [sendOpen, setSendOpen] = React.useState(false)
+  const [selectedMemberIds, setSelectedMemberIds] = React.useState<string[]>([])
+  const [cadence, setCadence] = React.useState<Survey["cadence"]>("quarterly")
+  const [isSending, setIsSending] = React.useState(false)
+
+  const send = async (memberIds: string[]) => {
+    setIsSending(true)
+    try {
+      const res = await fetch("/app/api/surveys/send", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tenantId, memberIds, cadence }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      toast({ title: "Survey sent" })
+      router.refresh()
+    } catch (e) {
+      toast({ title: "Failed to send survey", description: e instanceof Error ? e.message : "Unknown error" })
+    } finally {
+      setIsSending(false)
+    }
+  }
 
   const completedRecently = surveys.filter((s) => {
     if (!s.lastCompletedAt) return false
@@ -44,10 +76,72 @@ export function SurveysClient({ tenantId, members, surveys }: { tenantId: Tenant
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Surveys</h1>
           <p className="text-sm text-muted-foreground">Track member sentiment and gather feedback</p>
         </div>
-        <Button className="w-full sm:w-auto">
-          <Send className="mr-2 h-4 w-4" />
-          Send Survey
-        </Button>
+        <Dialog open={sendOpen} onOpenChange={setSendOpen}>
+          <DialogTrigger asChild>
+            <Button className="w-full sm:w-auto" disabled={!canEdit}>
+              <Send className="mr-2 h-4 w-4" />
+              Send Survey
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Send Survey</DialogTitle>
+              <DialogDescription>Select members and a cadence. This records a send event in the system.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Cadence</Label>
+                <Select value={cadence} onValueChange={(v) => setCadence(v as Survey["cadence"])}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="biweekly">Biweekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Members</Label>
+                <div className="grid gap-2 md:grid-cols-2 max-h-[260px] overflow-auto rounded-md border border-border p-3">
+                  {members.map((m) => {
+                    const checked = selectedMemberIds.includes(m.id)
+                    return (
+                      <label key={m.id} className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(next) => {
+                            const isChecked = next === true
+                            setSelectedMemberIds((prev) =>
+                              isChecked ? Array.from(new Set([...prev, m.id])) : prev.filter((id) => id !== m.id),
+                            )
+                          }}
+                        />
+                        <span className="truncate">
+                          {m.firstName} {m.lastName} — {m.company.name}
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <Button
+                disabled={selectedMemberIds.length === 0 || isSending || !canEdit}
+                onClick={async () => {
+                  await send(selectedMemberIds)
+                  setSendOpen(false)
+                  setSelectedMemberIds([])
+                }}
+              >
+                {isSending ? "Sending..." : `Send to ${selectedMemberIds.length}`}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
@@ -111,7 +205,7 @@ export function SurveysClient({ tenantId, members, surveys }: { tenantId: Tenant
           title="No surveys yet"
           description="Start sending surveys to gather member feedback"
           action={
-            <Button>
+            <Button onClick={() => setSendOpen(true)} disabled={!canEdit}>
               <Send className="mr-2 h-4 w-4" />
               Send Survey
             </Button>
@@ -232,7 +326,12 @@ export function SurveysClient({ tenantId, members, surveys }: { tenantId: Tenant
                             </div>
                           </DialogContent>
                         </Dialog>
-                        <Button size="sm" className="flex-1 sm:flex-none">
+                        <Button
+                          size="sm"
+                          className="flex-1 sm:flex-none"
+                          disabled={!canEdit || isSending}
+                          onClick={() => void send([member.id])}
+                        >
                           Send
                         </Button>
                       </div>

@@ -36,6 +36,30 @@ export async function GET(request: Request) {
       .limit(6)
     if (draftsError) throw draftsError
 
+    const draftMemberIds = Array.from(
+      new Set((drafts ?? []).map((d) => d.member_id).filter((id): id is string => typeof id === "string" && id.length > 0)),
+    )
+
+    const { data: draftMembers, error: draftMembersError } = await supabase
+      .from("members")
+      .select("id,first_name,last_name,company_name,company_role,email")
+      .eq("tenant_id", tenantId)
+      .in("id", draftMemberIds.length > 0 ? draftMemberIds : ["__none__"])
+    if (draftMembersError) throw draftMembersError
+
+    const draftMemberById = new Map(
+      (draftMembers ?? []).map((m) => [
+        m.id,
+        {
+          id: m.id,
+          firstName: m.first_name,
+          lastName: m.last_name,
+          email: m.email,
+          company: { name: m.company_name, role: m.company_role },
+        },
+      ]),
+    )
+
     return NextResponse.json({
       members: (members ?? []).map((m) => ({
         id: m.id,
@@ -50,6 +74,7 @@ export async function GET(request: Request) {
         actionType: d.action_type,
         content: d.content,
         status: d.status,
+        member: draftMemberById.get(d.member_id ?? "") ?? null,
       })),
     })
   } catch (e) {

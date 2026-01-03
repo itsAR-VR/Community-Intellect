@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import Link from "next/link"
 import { Target, Trophy, ExternalLink, Plus } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -7,37 +8,47 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
+import { toast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/use-auth"
 import { EmptyState } from "@/components/shared/empty-state"
-import type { TenantId, Member } from "@/lib/types"
+import type { Member, TenantId, VelocityChallenge, VelocityProof } from "@/lib/types"
+import { useRouter } from "next/navigation"
 
-const mockChallenges = [
-  {
-    id: "ch_001",
-    title: "Q1 Pipeline Challenge",
-    theme: "Generate $500K in pipeline by March 31",
-    participants: ["mem_001", "mem_004", "mem_006", "mem_008", "mem_010"],
-    proofs: [
-      { memberId: "mem_001", link: "https://example.com/proof1", description: "$120K closed" },
-      { memberId: "mem_004", link: "https://example.com/proof2", description: "$85K pipeline added" },
-    ],
-    startDate: "2026-01-01",
-    endDate: "2026-03-31",
-    active: true,
-  },
-  {
-    id: "ch_002",
-    title: "Content Creation Sprint",
-    theme: "Publish 3 thought leadership pieces",
-    participants: ["mem_002", "mem_005", "mem_011", "mem_013"],
-    proofs: [{ memberId: "mem_002", link: "https://example.com/article1", description: "LinkedIn article published" }],
-    startDate: "2025-12-01",
-    endDate: "2025-12-31",
-    active: false,
-  },
-]
+export function VelocityClient({
+  tenantId,
+  members,
+  challenges,
+  proofs,
+}: {
+  tenantId: TenantId
+  members: Member[]
+  challenges: VelocityChallenge[]
+  proofs: VelocityProof[]
+}) {
+  const router = useRouter()
+  const { canEdit } = useAuth()
 
-export function VelocityClient({ tenantId, members }: { tenantId: TenantId; members: Member[] }) {
-  const activeChallenges = mockChallenges.filter((c) => c.active)
+  const activeChallenges = challenges.filter((c) => c.active)
+  const participantCount = new Set(challenges.flatMap((c) => c.participantIds)).size
+
+  const [createOpen, setCreateOpen] = React.useState(false)
+  const [title, setTitle] = React.useState("")
+  const [theme, setTheme] = React.useState("")
+  const [startDate, setStartDate] = React.useState(() => new Date().toISOString().slice(0, 10))
+  const [endDate, setEndDate] = React.useState(() => new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10))
+  const [selectedParticipantIds, setSelectedParticipantIds] = React.useState<string[]>([])
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
+
+  const [proofOpenFor, setProofOpenFor] = React.useState<string | null>(null)
+  const [proofMemberId, setProofMemberId] = React.useState<string>("")
+  const [proofLink, setProofLink] = React.useState<string>("")
+  const [proofDescription, setProofDescription] = React.useState<string>("")
+  const [isProofSubmitting, setIsProofSubmitting] = React.useState(false)
 
   return (
     <div className="space-y-6">
@@ -46,10 +57,100 @@ export function VelocityClient({ tenantId, members }: { tenantId: TenantId; memb
           <h1 className="text-3xl font-bold tracking-tight">Velocity</h1>
           <p className="text-muted-foreground">Challenge tracking and accountability</p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Create Challenge
-        </Button>
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogTrigger asChild>
+            <Button disabled={!canEdit}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Challenge
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Create Challenge</DialogTitle>
+              <DialogDescription>Set a goal and invite members to participate.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Title</Label>
+                  <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Q1 Pipeline Challenge" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Theme</Label>
+                  <Input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="e.g., Generate $500K pipeline by Mar 31" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Start date</Label>
+                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>End date</Label>
+                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Participants</Label>
+                <div className="grid gap-2 md:grid-cols-2 max-h-[240px] overflow-auto rounded-md border border-border p-3">
+                  {members.map((m) => {
+                    const checked = selectedParticipantIds.includes(m.id)
+                    return (
+                      <label key={m.id} className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(next) => {
+                            const isChecked = next === true
+                            setSelectedParticipantIds((prev) =>
+                              isChecked ? Array.from(new Set([...prev, m.id])) : prev.filter((id) => id !== m.id),
+                            )
+                          }}
+                        />
+                        <span className="truncate">
+                          {m.firstName} {m.lastName} — {m.company.name}
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <Button
+                disabled={!title || !theme || !startDate || !endDate || isSubmitting || !canEdit}
+                onClick={async () => {
+                  setIsSubmitting(true)
+                  try {
+                    const res = await fetch("/app/api/velocity/challenges/create", {
+                      method: "POST",
+                      headers: { "content-type": "application/json" },
+                      body: JSON.stringify({
+                        tenantId,
+                        title,
+                        theme,
+                        startDate,
+                        endDate,
+                        participantIds: selectedParticipantIds,
+                        active: true,
+                      }),
+                    })
+                    if (!res.ok) throw new Error(await res.text())
+                    toast({ title: "Challenge created" })
+                    setCreateOpen(false)
+                    setTitle("")
+                    setTheme("")
+                    setSelectedParticipantIds([])
+                    router.refresh()
+                  } catch (e) {
+                    toast({ title: "Failed to create challenge", description: e instanceof Error ? e.message : "Unknown error" })
+                  } finally {
+                    setIsSubmitting(false)
+                  }
+                }}
+              >
+                {isSubmitting ? "Creating..." : "Create Challenge"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -73,7 +174,7 @@ export function VelocityClient({ tenantId, members }: { tenantId: TenantId; memb
                 <Trophy className="h-5 w-5 text-success" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{mockChallenges.reduce((sum, c) => sum + c.proofs.length, 0)}</p>
+                <p className="text-2xl font-bold">{proofs.length}</p>
                 <p className="text-sm text-muted-foreground">Proofs Submitted</p>
               </div>
             </div>
@@ -86,7 +187,7 @@ export function VelocityClient({ tenantId, members }: { tenantId: TenantId; memb
                 <Target className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{new Set(mockChallenges.flatMap((c) => c.participants)).size}</p>
+                <p className="text-2xl font-bold">{participantCount}</p>
                 <p className="text-sm text-muted-foreground">Total Participants</p>
               </div>
             </div>
@@ -94,13 +195,13 @@ export function VelocityClient({ tenantId, members }: { tenantId: TenantId; memb
         </Card>
       </div>
 
-      {mockChallenges.length === 0 ? (
+      {challenges.length === 0 ? (
         <EmptyState
           icon={Target}
           title="No challenges yet"
           description="Create a challenge to drive member accountability"
           action={
-            <Button>
+            <Button onClick={() => setCreateOpen(true)} disabled={!canEdit}>
               <Plus className="mr-2 h-4 w-4" />
               Create Challenge
             </Button>
@@ -108,10 +209,12 @@ export function VelocityClient({ tenantId, members }: { tenantId: TenantId; memb
         />
       ) : (
         <div className="space-y-6">
-          {mockChallenges.map((challenge) => {
-            const participants = challenge.participants.map((id) => members.find((m) => m.id === id)).filter(Boolean)
-            const participantsWithProof = new Set(challenge.proofs.map((p) => p.memberId))
-            const completionRate = Math.round((participantsWithProof.size / challenge.participants.length) * 100)
+          {challenges.map((challenge) => {
+            const participants = challenge.participantIds.map((id) => members.find((m) => m.id === id)).filter(Boolean)
+            const challengeProofs = proofs.filter((p) => p.challengeId === challenge.id)
+            const participantsWithProof = new Set(challengeProofs.map((p) => p.memberId))
+            const completionRate =
+              challenge.participantIds.length > 0 ? Math.round((participantsWithProof.size / challenge.participantIds.length) * 100) : 0
 
             return (
               <Card key={challenge.id} className={challenge.active ? "border-primary/50" : ""}>
@@ -135,7 +238,7 @@ export function VelocityClient({ tenantId, members }: { tenantId: TenantId; memb
                     <div className="flex items-center justify-between text-sm mb-2">
                       <span className="text-muted-foreground">Progress</span>
                       <span>
-                        {participantsWithProof.size}/{challenge.participants.length} participants
+                        {participantsWithProof.size}/{challenge.participantIds.length} participants
                       </span>
                     </div>
                     <Progress value={completionRate} className="h-2" />
@@ -172,11 +275,75 @@ export function VelocityClient({ tenantId, members }: { tenantId: TenantId; memb
                     </div>
                   </div>
 
-                  {challenge.proofs.length > 0 && (
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">Proof Links</p>
+                    <Dialog open={proofOpenFor === challenge.id} onOpenChange={(open) => setProofOpenFor(open ? challenge.id : null)}>
+                      <DialogTrigger asChild>
+                        <Button size="sm" variant="outline" className="bg-transparent" disabled={!canEdit}>
+                          <Plus className="mr-1.5 h-3.5 w-3.5" />
+                          Add Proof
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Add Proof</DialogTitle>
+                          <DialogDescription>Attach a link and short description for a member’s proof.</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-2">
+                          <div className="space-y-2">
+                            <Label>Member ID</Label>
+                            <Input value={proofMemberId} onChange={(e) => setProofMemberId(e.target.value)} placeholder="mem_..." />
+                            <p className="text-xs text-muted-foreground">Tip: copy from a member profile URL.</p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Link</Label>
+                            <Input value={proofLink} onChange={(e) => setProofLink(e.target.value)} placeholder="https://..." />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Description</Label>
+                            <Textarea value={proofDescription} onChange={(e) => setProofDescription(e.target.value)} placeholder="e.g., $120K closed" />
+                          </div>
+                          <Button
+                            disabled={!proofMemberId || !proofLink || !proofDescription || isProofSubmitting || !canEdit}
+                            onClick={async () => {
+                              setIsProofSubmitting(true)
+                              try {
+                                const res = await fetch("/app/api/velocity/proofs/create", {
+                                  method: "POST",
+                                  headers: { "content-type": "application/json" },
+                                  body: JSON.stringify({
+                                    tenantId,
+                                    challengeId: challenge.id,
+                                    memberId: proofMemberId,
+                                    link: proofLink,
+                                    description: proofDescription,
+                                  }),
+                                })
+                                if (!res.ok) throw new Error(await res.text())
+                                toast({ title: "Proof added" })
+                                setProofMemberId("")
+                                setProofLink("")
+                                setProofDescription("")
+                                setProofOpenFor(null)
+                                router.refresh()
+                              } catch (e) {
+                                toast({ title: "Failed to add proof", description: e instanceof Error ? e.message : "Unknown error" })
+                              } finally {
+                                setIsProofSubmitting(false)
+                              }
+                            }}
+                          >
+                            {isProofSubmitting ? "Saving..." : "Add Proof"}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+
+                  {challengeProofs.length > 0 && (
                     <div>
-                      <p className="text-sm font-medium mb-3">Proof Links</p>
                       <div className="space-y-2">
-                        {challenge.proofs.map((proof, i) => {
+                        {challengeProofs.map((proof, i) => {
                           const member = members.find((m) => m.id === proof.memberId)
                           return (
                             <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-muted">

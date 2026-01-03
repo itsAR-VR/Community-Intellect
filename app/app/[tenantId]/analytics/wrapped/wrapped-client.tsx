@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RiskBadge } from "@/components/shared/risk-badge"
+import { toast } from "@/hooks/use-toast"
 import type { TenantId, Member, MemberWrapped } from "@/lib/types"
 
 export function WrappedClient({ tenantId, members, wrapped }: { tenantId: TenantId; members: Member[]; wrapped: MemberWrapped[] }) {
@@ -31,7 +32,22 @@ export function WrappedClient({ tenantId, members, wrapped }: { tenantId: Tenant
           <h1 className="text-3xl font-bold tracking-tight">Member Wrapped</h1>
           <p className="text-muted-foreground">Spotify Wrapped-style progress narrative</p>
         </div>
-        <Button variant="outline">
+        <Button
+          variant="outline"
+          onClick={async () => {
+            try {
+              const payload = {
+                tenantId,
+                member,
+                wrapped: wrappedForMember ?? null,
+              }
+              await navigator.clipboard.writeText(JSON.stringify(payload, null, 2))
+              toast({ title: "Copied export JSON to clipboard" })
+            } catch {
+              toast({ title: "Export failed" })
+            }
+          }}
+        >
           <Download className="mr-2 h-4 w-4" />
           Export
         </Button>

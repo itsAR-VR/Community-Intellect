@@ -104,3 +104,73 @@ export async function updateMastermindAgenda(id: string, agendaDraft: string): P
   if (error) throw error
   return data ? mastermindRowToGroup(data) : null
 }
+
+export async function createMastermindGroup(input: {
+  id: string
+  tenantId: TenantId
+  name: string
+  theme?: string
+  leaderId: string
+  memberIds: string[]
+  nextSessionAt?: string
+}): Promise<MastermindGroup> {
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase
+    .from("mastermind_groups")
+    .insert({
+      id: input.id,
+      tenant_id: input.tenantId,
+      name: input.name,
+      theme: input.theme ?? null,
+      leader_id: input.leaderId,
+      member_ids: input.memberIds,
+      next_session_at: input.nextSessionAt ?? null,
+      rotation_schedule: [],
+      agenda_draft: null,
+      follow_up_items: [],
+    })
+    .select("*")
+    .single()
+  if (error) throw error
+  return mastermindRowToGroup(data)
+}
+
+export async function createMonthlyAgenda(input: {
+  id: string
+  tenantId: TenantId
+  month: string
+  themes: string[]
+  template: string
+}): Promise<MonthlyClubAgenda> {
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase
+    .from("monthly_agendas")
+    .insert({
+      id: input.id,
+      tenant_id: input.tenantId,
+      month: input.month,
+      themes: input.themes,
+      template: input.template,
+      speakers: [],
+      workshops: [],
+    })
+    .select("*")
+    .single()
+  if (error) throw error
+  return agendaRowToAgenda(data)
+}
+
+export async function updateMonthlyAgenda(input: {
+  id: string
+  themes?: string[]
+  template?: string
+}): Promise<MonthlyClubAgenda | null> {
+  const supabase = await createSupabaseServerClient()
+  const patch: Record<string, unknown> = {}
+  if (input.themes) patch.themes = input.themes
+  if (input.template !== undefined) patch.template = input.template
+
+  const { data, error } = await supabase.from("monthly_agendas").update(patch).eq("id", input.id).select("*").maybeSingle()
+  if (error) throw error
+  return data ? agendaRowToAgenda(data) : null
+}

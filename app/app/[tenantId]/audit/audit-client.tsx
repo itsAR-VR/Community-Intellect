@@ -21,6 +21,7 @@ import { format, formatDistanceToNow } from "date-fns"
 import type { ColumnDef } from "@tanstack/react-table"
 
 const eventTypeLabels: Record<AuditEventType, string> = {
+  member_created: "Member Created",
   draft_created: "Draft Created",
   draft_updated: "Draft Updated",
   draft_sent: "Draft Sent",
@@ -34,6 +35,15 @@ const eventTypeLabels: Record<AuditEventType, string> = {
   perk_created: "Perk Created",
   perk_recommendation_dismissed: "Perk Recommendation Dismissed",
   resource_created: "Resource Created",
+  pod_created: "Pod Created",
+  survey_sent: "Survey Sent",
+  mastermind_group_created: "Mastermind Group Created",
+  mastermind_agenda_updated: "Mastermind Agenda Updated",
+  monthly_agenda_created: "Monthly Agenda Created",
+  monthly_agenda_updated: "Monthly Agenda Updated",
+  settings_updated: "Settings Updated",
+  velocity_challenge_created: "Velocity Challenge Created",
+  velocity_proof_created: "Velocity Proof Created",
   forced_success_added: "Forced Success Added",
   forced_success_block_overridden: "Forced Success Block Overridden",
   outcome_recorded: "Outcome Recorded",

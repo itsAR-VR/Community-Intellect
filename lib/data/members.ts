@@ -80,3 +80,59 @@ export async function updateMember(memberId: string, updates: Partial<Member>): 
   if (error) throw error
   return data ? memberRowToMember(data) : null
 }
+
+export async function createMember(input: {
+  id: string
+  tenantId: TenantId
+  firstName: string
+  lastName: string
+  email: string
+  companyName: string
+  companyRole: string
+  status?: Member["status"]
+}): Promise<Member> {
+  const supabase = await createSupabaseServerClient()
+  const now = new Date().toISOString()
+
+  const { data, error } = await supabase
+    .from("members")
+    .insert({
+      id: input.id,
+      tenant_id: input.tenantId,
+      first_name: input.firstName,
+      last_name: input.lastName,
+      email: input.email,
+      avatar_url: null,
+      linkedin_url: null,
+      company_name: input.companyName,
+      company_role: input.companyRole,
+      company_website: null,
+      company_stage: null,
+      company_headcount: null,
+      company_industry: null,
+      status: input.status ?? "active",
+      joined_at: now,
+      renewal_date: null,
+      risk_tier: "green",
+      risk_score: 0,
+      engagement_score: 50,
+      last_engagement_at: null,
+      contact_state: "open",
+      last_contacted_at: null,
+      last_value_drop_at: null,
+      onboarding: {
+        intakeCompleted: false,
+        welcomeCallCompleted: false,
+        introPackDelivered: false,
+        profileVerified: false,
+      },
+      tags: [],
+      notes: null,
+      created_at: now,
+      updated_at: now,
+    })
+    .select("*")
+    .single()
+  if (error) throw error
+  return memberRowToMember(data)
+}

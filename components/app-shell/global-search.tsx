@@ -23,7 +23,15 @@ export function GlobalSearch({ tenantId }: GlobalSearchProps) {
   const [members, setMembers] = React.useState<
     Array<{ id: string; firstName: string; lastName: string; email: string; company: { name: string; role: string } }>
   >([])
-  const [drafts, setDrafts] = React.useState<Array<{ id: string; memberId: string; actionType: string; content: string }>>([])
+  const [drafts, setDrafts] = React.useState<
+    Array<{
+      id: string
+      memberId: string
+      actionType: string
+      content: string
+      member?: { id: string; firstName: string; lastName: string; email: string; company: { name: string; role: string } } | null
+    }>
+  >([])
   const router = useRouter()
 
   React.useEffect(() => {
@@ -100,11 +108,11 @@ export function GlobalSearch({ tenantId }: GlobalSearchProps) {
             {drafts
               .slice(0, 3)
               .map((draft) => {
-                const member = members.find((m) => m.id === draft.memberId)
+                const member = draft.member ?? members.find((m) => m.id === draft.memberId) ?? null
                 return (
                   <CommandItem
                     key={draft.id}
-                    value={`draft ${member?.firstName} ${member?.lastName} ${draft.actionType}`}
+                    value={`draft ${member?.firstName ?? ""} ${member?.lastName ?? ""} ${draft.actionType}`}
                     onSelect={() => {
                       router.push(`/app/${tenantId}/drafts`)
                       setOpen(false)
@@ -112,7 +120,7 @@ export function GlobalSearch({ tenantId }: GlobalSearchProps) {
                   >
                     <div>
                       <div className="font-medium">
-                        {draft.actionType} for {member?.firstName} {member?.lastName}
+                        {draft.actionType} for {member ? `${member.firstName} ${member.lastName}` : "Member"}
                       </div>
                       <div className="text-xs text-muted-foreground truncate max-w-[300px]">
                         {draft.content.slice(0, 60)}...

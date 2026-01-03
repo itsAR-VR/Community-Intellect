@@ -25,3 +25,23 @@ export async function getPods(tenantId: TenantId): Promise<Pod[]> {
   if (error) throw error
   return (data ?? []).map(podRowToPod)
 }
+
+export async function createPod(input: { id: string; tenantId: TenantId; name: string; memberIds: string[] }): Promise<Pod> {
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase
+    .from("pods")
+    .insert({
+      id: input.id,
+      tenant_id: input.tenantId,
+      name: input.name,
+      member_ids: input.memberIds,
+      monthly_goals_prompt_sent: false,
+      monthly_goals_received: [],
+      receipts_shared: [],
+      quiet_member_ids: [],
+    })
+    .select("*")
+    .single()
+  if (error) throw error
+  return podRowToPod(data)
+}
