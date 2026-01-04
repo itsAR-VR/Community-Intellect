@@ -3,7 +3,14 @@
     { "path": "/api/cron/surveys", "schedule": "0 13 * * *" },
     { "path": "/api/cron/programming-reminders", "schedule": "15 13 * * *" },
     { "path": "/api/cron/rollups/daily", "schedule": "30 13 * * *" },
-    { "path": "/api/cron/rollups/weekly", "schedule": "45 13 * * 1" }
+    { "path": "/api/cron/rollups/weekly", "schedule": "45 13 * * 1" },
+
+    { "path": "/api/cron/slack-process", "schedule": "*/10 * * * *" },
+    { "path": "/api/cron/outbox-evaluate", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/outbox-dispatch", "schedule": "5-59/15 * * * *" },
+
+    { "path": "/api/cron/drafts-trigger-based", "schedule": "20 */6 * * *" },
+    { "path": "/api/cron/drafts-autosend", "schedule": "10 * * * *" },
+    { "path": "/api/cron/drafts-forced-weekly", "schedule": "5 14 * * *" }
   ]
 }
-

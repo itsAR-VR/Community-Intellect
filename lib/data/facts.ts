@@ -1,5 +1,6 @@
 import "server-only"
 
+import { randomUUID } from "crypto"
 import type { Fact } from "@/lib/types"
 import { dateToIso, dateToIsoOrUndefined, nullToUndefined } from "@/lib/data/_utils"
 import { prisma } from "@/lib/prisma"
@@ -35,4 +36,33 @@ export async function getFactsForTenant(tenantId: string): Promise<Fact[]> {
     orderBy: { createdAt: "desc" },
   })
   return data.map(factRowToFact)
+}
+
+export async function createFactForMember(input: {
+  tenantId: string
+  memberId: string
+  category: Fact["category"]
+  key: string
+  value: string
+  confidence?: number
+  provenance?: Fact["provenance"]
+}): Promise<Fact> {
+  const now = new Date()
+  const data = await prisma.fact.create({
+    data: {
+      id: randomUUID(),
+      tenantId: input.tenantId,
+      memberId: input.memberId,
+      category: input.category,
+      key: input.key,
+      value: input.value,
+      confidence: input.confidence ?? 90,
+      provenance: input.provenance ?? "intake",
+      verifiedAt: null,
+      verifiedBy: null,
+      createdAt: now,
+      updatedAt: now,
+    },
+  })
+  return factRowToFact(data)
 }

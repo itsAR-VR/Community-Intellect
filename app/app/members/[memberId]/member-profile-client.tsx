@@ -23,6 +23,10 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { RiskBadge } from "@/components/shared/risk-badge"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { SourceBadge } from "@/components/shared/source-badge"
@@ -41,6 +45,7 @@ import type {
   Perk,
   OutcomeFeedback,
 } from "@/lib/types"
+import type { SlackDmThreadRow, SlackIdentityRow } from "@/lib/integrations/slack/types"
 import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { formatDistanceToNow, format } from "date-fns"
@@ -57,6 +62,8 @@ export function MemberProfileClient({
   perkRecommendations,
   perks,
   outcomes,
+  slackIdentity,
+  slackDmThread,
 }: {
   tenantMembers: Member[]
   member: Member | null
@@ -69,11 +76,29 @@ export function MemberProfileClient({
   perkRecommendations: PerkRecommendation[]
   perks: Perk[]
   outcomes: OutcomeFeedback[]
+  slackIdentity: SlackIdentityRow | null
+  slackDmThread: SlackDmThreadRow | null
 }) {
   const router = useRouter()
   const { canEdit } = useAuth()
   const [status, setStatus] = React.useState<MemberStatus>(member?.status ?? "lead")
   const [isUpdatingStatus, setIsUpdatingStatus] = React.useState(false)
+  const [isUpdatingContactState, setIsUpdatingContactState] = React.useState(false)
+
+  const [slackTeamId, setSlackTeamId] = React.useState(slackIdentity?.teamId ?? "")
+  const [slackUserId, setSlackUserId] = React.useState(slackIdentity?.slackUserId ?? "")
+  const [slackChannelId, setSlackChannelId] = React.useState(slackDmThread?.slackChannelId ?? "")
+  const [isSavingSlack, setIsSavingSlack] = React.useState(false)
+
+  const [intakeOpen, setIntakeOpen] = React.useState(false)
+  const [goal, setGoal] = React.useState("")
+  const [bottleneck, setBottleneck] = React.useState("")
+  const [stack, setStack] = React.useState("")
+  const [markWelcomeCall, setMarkWelcomeCall] = React.useState(true)
+  const [markIntroPack, setMarkIntroPack] = React.useState(true)
+  const [markProfileVerified, setMarkProfileVerified] = React.useState(false)
+  const [tryActivate, setTryActivate] = React.useState(true)
+  const [isSubmittingIntake, setIsSubmittingIntake] = React.useState(false)
 
   React.useEffect(() => {
     if (!member) return
@@ -110,6 +135,87 @@ export function MemberProfileClient({
       toast({ title: "Failed to update status", description: e instanceof Error ? e.message : "Unknown error" })
     } finally {
       setIsUpdatingStatus(false)
+    }
+  }
+
+  const toggleContactState = async () => {
+    if (!member) return
+    const next = member.contactState === "open" ? "closed" : "open"
+    setIsUpdatingContactState(true)
+    try {
+      const res = await fetch("/app/api/members/set-contact-state", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ memberId: member.id, contactState: next }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      toast({ title: "Contact state updated" })
+      router.refresh()
+    } catch (e) {
+      toast({ title: "Failed to update", description: e instanceof Error ? e.message : "Unknown error" })
+    } finally {
+      setIsUpdatingContactState(false)
+    }
+  }
+
+  const saveSlackMapping = async () => {
+    if (!member) return
+    setIsSavingSlack(true)
+    try {
+      const res = await fetch("/app/api/integrations/slack/link-member", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          memberId: member.id,
+          teamId: slackTeamId,
+          slackUserId,
+          slackChannelId: slackChannelId || undefined,
+        }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      toast({ title: "Slack mapping saved" })
+      router.refresh()
+    } catch (e) {
+      toast({ title: "Failed to save", description: e instanceof Error ? e.message : "Unknown error" })
+    } finally {
+      setIsSavingSlack(false)
+    }
+  }
+
+  const submitIntake = async () => {
+    if (!member) return
+    setIsSubmittingIntake(true)
+    try {
+      const res = await fetch("/app/api/intake/complete", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          memberId: member.id,
+          goal,
+          bottleneck,
+          stack,
+          markWelcomeCallCompleted: markWelcomeCall,
+          markIntroPackDelivered: markIntroPack,
+          markProfileVerified,
+          tryActivate,
+        }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      const json = (await res.json().catch(() => null)) as any
+      if (tryActivate && json?.activation?.ok === false) {
+        toast({ title: "Intake saved (activation blocked)", description: (json.activation?.missing ?? []).join(", ") })
+      } else {
+        toast({ title: "Intake saved" })
+      }
+      setIntakeOpen(false)
+      setGoal("")
+      setBottleneck("")
+      setStack("")
+      router.refresh()
+    } catch (e) {
+      toast({ title: "Failed to save intake", description: e instanceof Error ? e.message : "Unknown error" })
+    } finally {
+      setIsSubmittingIntake(false)
     }
   }
 
@@ -679,7 +785,13 @@ export function MemberProfileClient({
                     : "Never"}
                 </span>
               </div>
-              <Button variant="outline" size="sm" className="w-full bg-transparent mt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full bg-transparent mt-2"
+                onClick={toggleContactState}
+                disabled={!canEdit || isUpdatingContactState}
+              >
                 {member.contactState === "open" ? "Mark Closed" : "Reopen"}
               </Button>
             </CardContent>
@@ -722,6 +834,88 @@ export function MemberProfileClient({
                 )}
                 <span className="text-sm">Profile Verified</span>
               </div>
+              <Dialog open={intakeOpen} onOpenChange={setIntakeOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full bg-transparent" disabled={!canEdit}>
+                    Complete Intake
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Complete Intake</DialogTitle>
+                    <DialogDescription>Capture the required fields to unlock Active status.</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label>Primary goal</Label>
+                      <Textarea value={goal} onChange={(e) => setGoal(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Primary bottleneck</Label>
+                      <Textarea value={bottleneck} onChange={(e) => setBottleneck(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Stack summary</Label>
+                      <Textarea value={stack} onChange={(e) => setStack(e.target.value)} />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={markWelcomeCall} onChange={(e) => setMarkWelcomeCall(e.target.checked)} />
+                        Mark welcome call completed
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={markIntroPack} onChange={(e) => setMarkIntroPack(e.target.checked)} />
+                        Mark intro pack delivered
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={markProfileVerified}
+                          onChange={(e) => setMarkProfileVerified(e.target.checked)}
+                        />
+                        Mark profile verified
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={tryActivate} onChange={(e) => setTryActivate(e.target.checked)} />
+                        Try to set member status to Active
+                      </label>
+                    </div>
+                    <Button disabled={!goal || !bottleneck || !stack || isSubmittingIntake} onClick={submitIntake}>
+                      {isSubmittingIntake ? "Saving..." : "Save Intake"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Slack DM Mapping</CardTitle>
+              <CardDescription>Required for autosend gating (no Slack API keys needed).</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <Label>Team ID</Label>
+                <Input value={slackTeamId} onChange={(e) => setSlackTeamId(e.target.value)} placeholder="T0123..." />
+              </div>
+              <div className="space-y-2">
+                <Label>Member Slack User ID</Label>
+                <Input value={slackUserId} onChange={(e) => setSlackUserId(e.target.value)} placeholder="U0123..." />
+              </div>
+              <div className="space-y-2">
+                <Label>DM Channel ID (optional)</Label>
+                <Input value={slackChannelId} onChange={(e) => setSlackChannelId(e.target.value)} placeholder="D0123..." />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full bg-transparent"
+                disabled={!canEdit || !slackTeamId || !slackUserId || isSavingSlack}
+                onClick={saveSlackMapping}
+              >
+                {isSavingSlack ? "Saving..." : "Save Slack Mapping"}
+              </Button>
             </CardContent>
           </Card>
 

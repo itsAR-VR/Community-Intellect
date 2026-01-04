@@ -50,13 +50,14 @@ export async function POST(request: Request) {
   const event = payload as SlackEventCallback
   const eventTs = event.event?.event_ts ?? event.event?.ts ?? null
   const eventType = event.event?.type ?? "unknown"
+  const tenantId = (process.env.SLACK_DEFAULT_TENANT_ID as string | undefined) ?? null
 
   try {
     await prisma.slackEvent.upsert({
       where: { eventId: event.event_id },
       create: {
         id: randomUUID(),
-        tenantId: null,
+        tenantId,
         teamId: event.team_id,
         eventId: event.event_id,
         eventType,
@@ -71,4 +72,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true })
 }
-

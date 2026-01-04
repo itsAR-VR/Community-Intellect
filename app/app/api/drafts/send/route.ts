@@ -31,13 +31,24 @@ export async function POST(request: Request) {
     if (!draft) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     // Phase 1: "Send" enqueues a delivery job (actual Slack delivery is integrated later).
-    await enqueueOutboundMessageFromDraft({
+    const queued = await enqueueOutboundMessageFromDraft({
       tenantId: CLUB_TENANT_ID,
       memberId: draft.memberId,
       draft,
       sendAs: "community_manager",
       channel: "slack_dm",
     }).catch(() => null)
+    if (queued) {
+      await createAuditEntry({
+        tenantId: CLUB_TENANT_ID,
+        type: "outbound_message_enqueued",
+        actorId: whoami.user.id,
+        actor: whoami.user.name,
+        actorRole: whoami.user.role,
+        memberId: draft.memberId,
+        details: { outboundMessageId: queued.id, draftId: draft.id },
+      }).catch(() => null)
+    }
 
     await createAuditEntry({
       tenantId: CLUB_TENANT_ID,

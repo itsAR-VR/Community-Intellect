@@ -26,6 +26,7 @@ import {
   Target,
   Layers,
   FileText,
+  Inbox,
   Settings,
   Menu,
   ChevronLeft,
@@ -87,6 +88,7 @@ const navGroups: NavGroup[] = [
     title: "Admin",
     items: [
       { title: "Audit Log", href: "/audit", icon: FileText },
+      { title: "Outbox", href: "/outbox", icon: Inbox },
       { title: "Settings", href: "/settings", icon: Settings },
     ],
   },

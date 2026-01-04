@@ -25,6 +25,8 @@ const eventTypeLabels: Record<AuditEventType, string> = {
   draft_created: "Draft Created",
   draft_updated: "Draft Updated",
   draft_sent: "Draft Sent",
+  outbound_message_enqueued: "Outbound Message Enqueued",
+  outbound_message_sent: "Outbound Message Sent",
   draft_discarded: "Draft Discarded",
   draft_merged: "Draft Merged",
   contact_state_changed: "Contact State Changed",

@@ -48,6 +48,49 @@ export async function getDraftById(id: string): Promise<MessageDraft | null> {
   return data ? draftRowToDraft(data) : null
 }
 
+export async function createDraft(input: {
+  id: string
+  tenantId: TenantId
+  memberId: string
+  actionType: MessageDraft["actionType"]
+  subject?: string
+  content: string
+  impactScore?: number
+  autosendEligible?: boolean
+  blockedReasons?: string[]
+  sendRecommendation?: MessageDraft["sendRecommendation"]
+  generatedFromOpportunityId?: string
+  generatedFromActionId?: string
+  editorId?: string
+}): Promise<MessageDraft> {
+  const now = new Date()
+  const data = await prisma.messageDraft.create({
+    data: {
+      id: input.id,
+      tenantId: input.tenantId,
+      memberId: input.memberId,
+      actionType: input.actionType,
+      subject: input.subject ?? null,
+      content: input.content,
+      impactScore: input.impactScore ?? 60,
+      autosendEligible: input.autosendEligible ?? false,
+      blockedReasons: input.blockedReasons ?? [],
+      sendRecommendation: input.sendRecommendation ?? "review",
+      status: "pending",
+      mergedWithId: null,
+      generatedFromOpportunityId: input.generatedFromOpportunityId ?? null,
+      generatedFromActionId: input.generatedFromActionId ?? null,
+      editedAt: input.editorId ? now : null,
+      editedBy: input.editorId ?? null,
+      sentAt: null,
+      sentBy: null,
+      createdAt: now,
+      updatedAt: now,
+    },
+  })
+  return draftRowToDraft(data)
+}
+
 export async function updateDraft(id: string, updates: Partial<MessageDraft>, editorId: string): Promise<MessageDraft | null> {
   const patch: Record<string, unknown> = {}
   if (updates.subject !== undefined) patch.subject = updates.subject ?? null

@@ -11,6 +11,36 @@ export type ContactState = "open" | "closed" | "muted"
 export type UserRole = "admin" | "community_manager" | "read_only"
 
 // ============================================================================
+// MESSAGING (OUTBOX)
+// ============================================================================
+
+export type OutboundMessageStatus = "queued" | "blocked" | "ready" | "sent" | "error"
+export type OutboundMessageChannel = "slack_dm"
+export type OutboundMessageSendAs = "community_manager" | "ai_bot"
+export type OutboundMessageType = "forced_weekly" | "trigger_based"
+
+export interface OutboundMessage {
+  id: string
+  tenantId: TenantId
+  memberId: string
+  draftId?: string
+  messageType: OutboundMessageType
+  channel: OutboundMessageChannel
+  sendAs: OutboundMessageSendAs
+  status: OutboundMessageStatus
+  body: string
+  queuedAt: string
+  scheduledFor?: string
+  sentAt?: string
+  externalId?: string
+  threadChannelId?: string
+  threadTs?: string
+  error?: string
+  createdAt: string
+  updatedAt: string
+}
+
+// ============================================================================
 // MEMBER & PROFILE
 // ============================================================================
 
@@ -565,6 +595,8 @@ export type AuditEventType =
   | "draft_created"
   | "draft_updated"
   | "draft_sent"
+  | "outbound_message_enqueued"
+  | "outbound_message_sent"
   | "draft_discarded"
   | "draft_merged"
   | "contact_state_changed"

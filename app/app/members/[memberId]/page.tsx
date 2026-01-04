@@ -12,6 +12,8 @@ import {
   getPerks,
   getSignalsByMember,
   getOutcomeFeedbackByMember,
+  getSlackIdentityForMember,
+  getSlackDmThreadForMember,
 } from "@/lib/data"
 import { MemberProfileClient } from "./member-profile-client"
 
@@ -32,6 +34,8 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
     perkRecommendations,
     perks,
     outcomes,
+    slackIdentity,
+    slackDmThread,
   ] = await Promise.all([
     getMembers(CLUB_TENANT_ID),
     getFactsByMember(memberId),
@@ -43,6 +47,8 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
     getPerkRecommendations(CLUB_TENANT_ID, memberId),
     getPerks(CLUB_TENANT_ID),
     getOutcomeFeedbackByMember(memberId),
+    getSlackIdentityForMember(CLUB_TENANT_ID, memberId),
+    getSlackDmThreadForMember(CLUB_TENANT_ID, memberId),
   ])
 
   return (
@@ -58,6 +64,8 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
       perkRecommendations={perkRecommendations}
       perks={perks}
       outcomes={outcomes}
+      slackIdentity={slackIdentity}
+      slackDmThread={slackDmThread}
     />
   )
 }

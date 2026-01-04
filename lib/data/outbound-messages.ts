@@ -2,15 +2,42 @@ import "server-only"
 
 import { randomUUID } from "crypto"
 import { prisma } from "@/lib/prisma"
-import type { TenantId, MessageDraft } from "@/lib/types"
+import { dateToIso, dateToIsoOrUndefined, nullToUndefined } from "@/lib/data/_utils"
+import type { TenantId, MessageDraft, OutboundMessage, OutboundMessageSendAs, OutboundMessageType } from "@/lib/types"
 
-export type OutboundMessageType = "forced_weekly" | "trigger_based"
 export type OutboundMessageChannel = "slack_dm"
-export type OutboundMessageSendAs = "community_manager" | "ai_bot"
 
 function inferMessageTypeFromDraft(draft: MessageDraft): OutboundMessageType {
   if (draft.generatedFromOpportunityId || draft.generatedFromActionId) return "trigger_based"
   return "forced_weekly"
+}
+
+function rowToOutboundMessage(row: any): OutboundMessage {
+  return {
+    id: row.id,
+    tenantId: row.tenantId as TenantId,
+    memberId: row.memberId,
+    draftId: nullToUndefined(row.draftId),
+    messageType: row.messageType,
+    channel: row.channel,
+    sendAs: row.sendAs,
+    status: row.status,
+    body: row.body,
+    queuedAt: dateToIso(row.queuedAt),
+    scheduledFor: dateToIsoOrUndefined(row.scheduledFor),
+    sentAt: dateToIsoOrUndefined(row.sentAt),
+    externalId: nullToUndefined(row.externalId),
+    threadChannelId: nullToUndefined(row.threadChannelId),
+    threadTs: nullToUndefined(row.threadTs),
+    error: nullToUndefined(row.error),
+    createdAt: dateToIso(row.createdAt),
+    updatedAt: dateToIso(row.updatedAt),
+  }
+}
+
+export async function getOutboundMessagesForTenant(tenantId: TenantId): Promise<OutboundMessage[]> {
+  const data = await prisma.outboundMessage.findMany({ where: { tenantId }, orderBy: { queuedAt: "desc" }, take: 500 })
+  return data.map(rowToOutboundMessage)
 }
 
 export async function enqueueOutboundMessageFromDraft(input: {
@@ -49,3 +76,24 @@ export async function enqueueOutboundMessageFromDraft(input: {
   return created
 }
 
+export async function updateOutboundMessage(
+  id: string,
+  patch: Partial<
+    Pick<OutboundMessage, "status" | "scheduledFor" | "sentAt" | "externalId" | "error" | "threadChannelId" | "threadTs">
+  >,
+) {
+  const data = await prisma.outboundMessage.update({
+    where: { id },
+    data: {
+      status: patch.status,
+      scheduledFor: patch.scheduledFor ? new Date(patch.scheduledFor) : undefined,
+      sentAt: patch.sentAt ? new Date(patch.sentAt) : undefined,
+      externalId: patch.externalId ?? undefined,
+      error: patch.error === "" ? null : patch.error ?? undefined,
+      threadChannelId: patch.threadChannelId ?? undefined,
+      threadTs: patch.threadTs ?? undefined,
+      updatedAt: new Date(),
+    },
+  })
+  return rowToOutboundMessage(data)
+}
