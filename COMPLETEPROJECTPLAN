@@ -1,0 +1,843 @@
+# **B2B CMO Club Internal Community AI**
+
+## **Feature Plan \+ Priority Backlog (P0–P3) — v2 (AI‑First, Intake‑Driven, Internal‑Only)**
+
+**This document is the build‑ready feature plan for the B2B CMO Club Internal Community AI.**
+
+---
+
+## **1\) Executive summary**
+
+### **1.1 What we are building**
+
+An internal‑only **Retention Intelligence \+ Concierge Enablement Engine** that powers the B2B CMO Club’s “white‑glove concierge” experience at **fixed cost** (one community manager).
+
+This AI will:
+
+* Maintain a continuously updated, evidence‑backed “truth profile” for every member.  
+* Detect opportunities and risks using **two engines**:  
+  1. **Live signals** (Slack \+ LinkedIn \+ careers pages)  
+  2. **Forced‑success signals** (intake \+ surveys \+ mastermind calls \+ internal knowledge) surveys sent via slack (we can use our own platform and have a public endpoint for surveys)  
+* Convert signals into **ranked actions** (primarily drafted Slack DMs from the Community Manager account).  
+* Run a weekly “value guarantee” system (minimum one value drop/member/week).  
+* Enable programming (masterminds \+ workshops \+ speakers) using data intersections across members.
+
+### **1.2 Why this will be good**
+
+B2B’s AI will perform well because the club is structurally designed for AI performance:
+
+* **Complete intake completeness** via the closer intake call (high‑integrity structured data).  
+* **Identity stitching solved upfront** (emails used for Slack/Zoom/etc.).  
+* **Internal‑only action cockpit \+ auto‑send logic** (CM efficiency).  
+* **Weekly forced‑success engine** (not monthly).  
+* **LinkedIn \+ careers page live signals** on a scheduled 12‑hour loop.  
+* **Hard outcome loops** (1–10 ratings \+ feedback \<6) to train the system over time.
+
+---
+
+## **2\) Core objective and KPI contract**
+
+### **2.1 Core objective (non‑negotiable)**
+
+The AI’s job is **not just support**. It is a **Retention Intelligence \+ Concierge Enablement Engine**.
+
+### **2.2 Primary KPIs the AI must influence**
+
+* Renewal rate  
+* Expansion/adoption (Slack, masterminds, workshops; app later if ever)  
+* Time‑to‑value for new members  
+* Perceived “they really know me” factor  
+* Value delivered to members (wins, intros, savings, solved problems)
+
+---
+
+## **3\) Phase 1 scope constraints (locked decisions)**
+
+### **3.1 AI is internal‑only (Phase 1\)**
+
+* No member‑facing chatbot yet.  
+* Community team uses:  
+  * Dashboard (Next.js/Vercel)  
+  * Internal AI chat inside dashboard  
+  * Slack admin notifications
+
+### **3.2 Messaging mechanics (Slack)**
+
+* Proactive outreach goes out as the **Community Manager’s Slack account**, AI drafted.  
+* Auto‑send is allowed **for any outreach type** (intros/perks/resources/invites/check‑ins) **only when**:  
+  1. The member replied to the last CM message **or** the previous conversation is marked “closed”, and  
+  2. **24+ hours** have passed since the last message in that DM thread.  
+* No hard “max DM frequency”—the response‑gating prevents double‑sending and spam.
+
+### **3.3 Forced success cadence (weekly)**
+
+* Minimum **one value drop per member per week**  
+* Preferred forced‑success order:  
+  1. Intros  
+  2. Perks  
+  3. Resources  
+  4. Workshop invite  
+  5. Check‑in question
+
+### **3.4 Masterminds and workshops cadence**
+
+* Masterminds: **1 mastermind per \~5 members**, self‑hosted; AI suggests intersection topics. (Group stability policy remains: group stays the same; members can request changes.)  
+* Workshops/speaker events: **2–4 per month** (bi‑weekly to weekly).
+
+### **3.5 Transcript provider and canonical system**
+
+* Transcripts: Recall.ai (via custom tool)  
+* Canonical CRM/source of truth: Supabase \+ Prisma  
+* Membership/payments: Supabase \+ Stripe integration
+
+---
+
+## **4\) Data sources & ingestion spec (what the AI learns from)**
+
+### **4.1 Structured “truth sources” (highest priority)**
+
+These are the sources designed to minimize hallucinations:
+
+1. Closer intake call recording \+ transcript (deep capture)  
+2. Intake structured form/fields (completed during/after call)  
+3. Member profile confirmation message (“what’s wrong/missing?”) — creates verified facts  
+4. Surveys (monthly/quarterly refresh, as defined below) survey sent via slack (we can use our own platform and have a public endpoint for surveys)
+
+### **4.2 Ongoing internal signals**
+
+5. Slack channels (messages, threads, reactions)
+
+**Slack channel structure (AI signal design)**
+
+* **Core channels (auto-join / Tier 1):**  
+  * \#announcements (read-only updates)  
+  * \#introductions (templated intro required)  
+  * \#wins (pinned template/instructions for wins; speaker sourcing)   
+  * \#asks (pinned template/instructions for asks; highest-signal requests)  
+  * \#problem-solving (tactical help / troubleshooting)  
+  * \#tech-stack (tools; perks matching)  
+  * \#marketing-tactics (general tactics \+ discussion)  
+  * \#hiring-and-people (hiring, team, operators)  
+  * \#partnership-opportunities (co-marketing/JVs)  
+  * \#perks (perk hub \+ new perk notifications)  
+  * \#market-signals (curated weekly prompts/signals)  
+  * \#build-in-public (experiments \+ learnings)  
+  * \#general (light; discourage tactical asks here)  
+  * \#cold-email, \#cold-text, \#seo, \#ppc, \#social-media-management, \#social-media-advertising, etc.  
+  * \#mastermind- (self-hosted; \~5 members)  
+  * \#velocity (high-standards program)
+
+Slack ingestion must capture messages, threads, and reactions across these channels (respecting membership and privacy rules).
+
+6. Mastermind calls (single main room; whole transcript usable)  
+7. Accountability pod posts (monthly goals \+ receipts)  
+8. CourseCreator360 / internal knowledge corpus
+
+---
+
+## **4.3 Live external signals (12-hour cadence)**
+
+**Goal:** capture high-value external signals without ingesting excessive content.
+
+In addition to LinkedIn and company careers pages, the AI will also monitor:
+
+* **Instagram (company \+ personal profiles)**  
+* **Indeed (job postings and role changes)**  
+* **X (Twitter) profiles (company \+ personal)**
+
+All external signals are **public-only** and do **not** require member logins.
+
+---
+
+### **4.3.1 LinkedIn monitoring targets (public-only)**
+
+* Member personal posts (public)  
+* Company page posts (public)  
+* Job changes (when observable from public profile deltas or announcements)  
+* Hiring announcements (LinkedIn job posts if public, plus company careers page changes)
+
+No logins are required from members (public signal collection only).
+
+---
+
+### **4.3.2 Instagram monitoring targets (public-only)**
+
+* Company Instagram posts and bio changes  
+* Member personal Instagram posts (if public and provided at intake)  
+* Signals such as:  
+  * product or campaign launches  
+  * brand repositioning  
+  * hiring announcements  
+  * major engagement spikes  
+  * link-in-bio or CTA changes
+
+---
+
+### **4.3.3 Indeed monitoring targets (public-only)**
+
+* New job postings associated with the member’s company  
+* Changes in role types or hiring volume over time  
+* Signals such as:  
+  * team expansion  
+  * function prioritization (e.g., lifecycle, RevOps, paid media)  
+  * mismatch between stated goals and hiring behavior
+
+---
+
+### **4.3.4 X (Twitter) monitoring targets (public-only)**
+
+* Member personal X profile activity (if public and provided)  
+* Company X profile activity  
+* Signals such as:  
+  * strategic opinions or market commentary  
+  * expressed frustration or urgency  
+  * reactions to competitors or industry changes  
+  * early signals of experimentation or pivots
+
+---
+
+### **4.3.5 Careers page monitoring**
+
+* For each member company, store a canonical careers page URL at intake (or derive from company site)  
+* Monitor for changes and new job postings  
+* Treat the most recent changes as highest value
+
+---
+
+### **4.3.6 “Post analysis” summarization layer (anti-bloat)**
+
+For every detected LinkedIn, Instagram, Indeed, X, or careers-page item:
+
+Run a lightweight analysis prompt to extract:
+
+* **“What happened?”** (one sentence)  
+* **Tags** (hiring, launch, pivot, messaging, product update, funding, partnership, thought leadership)  
+* **Implied needs/opportunities**  
+* **Recommended action type(s)** (intro / perk / resource / workshop invite / check-in)
+
+Store:
+
+* Link to original source  
+* Timestamp  
+* Structured summary \+ tags (not full raw content unless needed for audit)
+
+Add the summary into the member’s context feed.
+
+---
+
+## **5\) System architecture (internal components)**
+
+### **5.1 Canonical “Truth Graph” (Supabase \+ Prisma)**
+
+The AI is built on a member truth graph:
+
+* **Facts**: goals, bottlenecks, stack tools, constraints, initiatives, hiring plans, expertise  
+* **Signals**: Slack events, call highlights, LinkedIn/careers summaries  
+* **Actions**: recommendations, message drafts, intros, perk sends  
+* **Outcomes**: 1–10 ratings \+ conditional feedback (\<6) \+ escalation
+
+Every fact must have provenance:
+
+* source\_type (intake, survey, slack, mastermind, linkedin, careers)  
+* source\_id (call id, slack message id, linkedin signal id)  
+* timestamp  
+* confidence
+
+### **5.2 Opportunity pipeline (“Signal → Action”)**
+
+All incoming data becomes standardized **Opportunity Items**:
+
+* type: hiring, pain signal, win, topic trend, tool mention, partnership request, etc.  
+* urgency score  
+* relevance to member’s goals  
+* recommended next actions
+
+Opportunity Items are converted into:
+
+* recommendations  
+* message drafts  
+* tasks in the dashboard queues
+
+### **5.3 Concierge Command Center (dashboard)**
+
+The dashboard is the operating surface for one CM:
+
+* Member profile view (“truth profile \+ current context \+ actions”)  
+* Who needs attention list  
+* Opportunity feed  
+* Draft messages queue (manual send / approve auto-send)  
+* Intros queue \+ outcomes  
+* Perks queue \+ outcomes  
+* Weekly forced-success queue  
+* Programming planner (masterminds \+ workshop topics \+ speakers)
+
+### **5.4 Internal AI Chat (in-dashboard)**
+
+The CM/founders can ask:
+
+* “Who should I talk to this week?”  
+* “What matters to \[Member\] right now?”  
+* “Draft a DM to \[Member\] about \[X\] using evidence.”  
+* “Which 5 members should be spotlighted for a workshop on \[topic\]?”
+
+---
+
+# **6\) Feature plan \+ priority backlog (P0–P3)**
+
+**Note on priorities:** The Sora Media AI spec is largely P0 in spirit (core concierge \+ retention engine). B2B keeps those as P0 and adds additional P0 items enabled by high-quality intake and the club’s AI-first design.
+
+---
+
+## **P0 — Launch-critical (must ship before public scale)**
+
+### **P0.0 Intake Completeness \+ Identity Stitching (the B2B advantage)**
+
+**What:** a structured intake system that produces verified, high-integrity member data so the AI can be precise from Day 1\.
+
+**Includes:**
+
+* **Closer intake call script \+ structured form** (goals, bottlenecks, constraints, stack by category, hiring plans, expertise, preferences).  
+* **Completeness gate:** a member cannot be marked “Active” until required fields are captured.  
+* **Identity stitching:** capture and link all identities at intake:  
+  * primary email  
+  * secondary email(s)  
+  * Slack email (if different)  
+  * Zoom email (if different)  
+  * assistant/EA email (optional)  
+* **Member verification loop:** after intake, send “Member Truth Profile v1” for corrections; store edits as verified facts.
+
+**Outputs:**
+
+* verified Member Truth Profile (with provenance)  
+* stable identity mapping (Slack user ↔ member)
+
+**Acceptance criteria:**
+
+* intake completeness is enforced programmatically (no “best effort”); missing required fields block onboarding automations  
+* member corrections update the truth graph and reduce future wrong recommendations
+
+---
+
+### **P0.1 Truth Graph \+ Provenance Storage (Supabase/Prisma)**
+
+**What:** canonical schema for member facts \+ signals \+ actions \+ outcomes.  
+**Inputs:** intake transcript \+ structured fields \+ Slack \+ surveys \+ masterminds \+ LinkedIn/careers summaries.  
+**Outputs:** queryable profile facts with sources \+ timestamps \+ confidence.  
+**Acceptance criteria:** every fact displayed to CM has provenance; system supports “this is wrong” corrections.
+
+---
+
+### **P0.2 Ingestion: Slack (messages \+ threads \+ reactions)**
+
+**What:** capture all Slack activity from Tier-1 channels \+ opted-in Tier-2 channels.  
+**Outputs:** searchable log, embeddings, tags for \[ASK\]/\[WIN\]/\[HIRING\] templates.  
+**Acceptance:** near-real-time ingestion; stable mapping of slack user → member identity.
+
+---
+
+### **P0.3 Ingestion: Calls (Recall.ai transcripts for intake \+ masterminds)**
+
+**What:** ingest recordings/transcripts and chunk into retrievable units.  
+**Outputs:** structured highlights \+ embeddings; update member truth graph.  
+**Acceptance:** intake calls reliably produce structured facts; masterminds generate topic signals.
+
+---
+
+### **P0.4 Ingestion: Surveys (refresh engine)**
+
+**What:** scheduled surveys that update truth facts (goals, stack changes, hiring plans).  
+**Cadence:** monthly “quick refresh” \+ quarterly “deep refresh” (implementation detail).  
+**Acceptance:** survey updates create new fact versions with timestamps; old facts remain viewable.
+
+surveys sent via slack (we can use our own platform and have a public endpoint for surveys)
+
+---
+
+### **P0.5 Ingestion: Knowledge corpus (CourseCreator360 \+ club policies)**
+
+**What:** index internal knowledge for retrieval and recommendation.  
+**Acceptance:** AI can attach 1–3 relevant resources to a member’s current bottleneck.
+
+---
+
+### **P0.6 Live External Signal Harvester (LinkedIn \+ Careers) — 12-hour loop**
+
+**What:** every 12 hours per member, gather public LinkedIn \+ careers signals.  
+**Key constraints (locked):**
+
+* public-only (no member logins)  
+* do post/careers item analysis summary (avoid content bloat)  
+* recency-weighted scoring
+
+**Outputs:**
+
+* LinkedInSignal / CareerSignal objects  
+* “What happened?” summaries \+ tags  
+* Opportunity items \+ recommended actions
+
+**Acceptance:**
+
+* each member gets a refresh at least every 12 hours  
+* system stores summary \+ link, not raw dumps  
+* new job postings trigger opportunity items
+
+---
+
+### **P0.7 Member Truth Profile 2.0 (Unified Intelligence Profile — B2B version)**
+
+**What:** single pane of glass for each member.  
+**Must include** (Sora Media baseline \+ B2B additions):
+
+* company snapshot (industry, revenue band, growth stage)  
+* goals (ranked)  
+* bottlenecks (ranked)  
+* emotional state trend (burnout/excitement/frustration)  
+* engagement velocity / trend (if possible)  
+* stack by category \+ notes  
+* hiring plans  
+* expertise (“can help with”) \+ proof links  
+* last 10 meaningful signals (Slack \+ LinkedIn \+ calls)  
+* recommended next actions (ranked) \+ why \+ evidence
+
+**Acceptance:** profile page loads fast; evidence links are clickable; CM can edit/correct.
+
+---
+
+### **P0.8 Concierge Briefing Agent (pre-interaction)**
+
+**What:** generate a 90-second briefing before any DM/check-in/renewal convo.  
+**Outputs:** “what matters now,” “what not to say,” “next action,” risk snapshot.  
+**Acceptance:** one-click from member profile; references evidence.
+
+---
+
+### **P0.9 Attention Radar (Who Needs Attention \+ Risk Scoring \+ Playbooks)**
+
+**What:** proactive relationship ops view: “who to talk to this week.”  
+**Signals:** Slack drop, missed calls, sentiment drift, reduced peer interactions.  
+**Outputs:** ranked list \+ reason \+ recommended playbook \+ drafted DM.  
+**Acceptance:** CM can sort/filter by risk, renewal window, inactivity.
+
+---
+
+### **P0.10 Opportunity-to-Action Engine (Live \+ Forced Success)**
+
+**What:** detect leverage points and produce actions.  
+**Live triggers (examples):**
+
+* member posts about a problem on Slack  
+* member posts on LinkedIn about hiring/launch/issue  
+* careers page update indicates hiring  
+  **Forced-success triggers:**  
+* weekly value guarantee (see P0.14)
+
+**Outputs:** intros/perks/resources/invites/check-ins \+ message drafts.
+
+---
+
+### **P0.11 Intro Engine 1.0 (3-intro fast start \+ ongoing intros)**
+
+**What:** new member gets 3 intro recommendations; ongoing matchmaker engine.  
+**Outputs:** intro suggestions with “why” and evidence; CM send flows.  
+**Acceptance:** intro recommendations are grounded (goal/bottleneck/stack/location).
+
+---
+
+### **P0.12 Intro Outcome Tracking (mandatory learning loop)**
+
+**What:** every intro has an outcome request:
+
+* 1–10 rating  
+* if \<6: required short feedback (text or audio)  
+* escalation to CM if negative sentiment is detected
+
+**Acceptance:** outcomes are logged; low ratings trigger root-cause tags.
+
+---
+
+### **P0.13 Perks Concierge 1.0 (Proactive \+ outcome feedback)**
+
+**What:** match perks to member stack and needs; proactively recommend.  
+**Inputs:** intake stack fields \+ perk DB.  
+**Outputs:** perk DM drafts \+ perk send log; 1–10 rating with feedback \<6.  
+**Acceptance:** perks are explainable (“because you use X”); CM can throttle per member if needed.
+
+---
+
+### **P0.14 Weekly Forced-Success Engine (value guarantee)**
+
+**What:** scheduler that ensures each member receives at least one value drop per week.  
+**Preference order (locked):**
+
+1. intro  
+2. perk  
+3. resource  
+4. workshop invite  
+5. check-in question
+
+**Output:** weekly queue of “best next value drops,” ranked by impact.
+
+**Acceptance:** dashboard shows:
+
+* due this week  
+* already delivered this week  
+* blocked by conversation state (see P0.15)
+
+---
+
+### **P0.15 Conversation-Aware Messaging Orchestrator (drafts \+ auto-send rules)**
+
+**What:** system that drafts messages and sends them safely.
+
+**Auto-send rule (locked):**
+
+* auto-send only if:  
+  * member replied to last CM message OR conversation marked “closed,” AND  
+  * 24+ hours since last message
+
+**No max frequency:** engagement-driven; prevents double-send.
+
+**Outputs:**
+
+* Draft queue with impact score  
+* send decision: auto-send eligible vs manual review required  
+* “merge drafts” suggestion if multiple opportunities exist
+
+**Acceptance:** no automated double-sends; full audit log of sent messages.
+
+---
+
+### **P0.16 Mastermind System Intelligence (grouping \+ agenda intersections)**
+
+**What:** support for the mastermind model described in the club doc.
+
+* create/maintain mastermind groups (\~5 members)  
+* suggest intersection topics based on members’ goals/bottlenecks  
+* generate agendas
+
+**Acceptance:** for each mastermind group, AI produces:
+
+* 3–5 suggested agenda items  
+* “who should lead next” rotation recommendation  
+* follow-up action items per member after the call
+
+---
+
+### **P0.17 Mastermind Agenda Generator (monthly club-wide)**
+
+Explicit requirement from B2B CMO Club AI starter doc.  
+**What:** monthly agenda template “what’s most important to everyone in the club.”  
+**Outputs:** agenda template \+ top themes \+ recommended speakers/workshops.
+
+---
+
+### **P0.18 Programming Planner 1.0 (workshops 2–4/month)**
+
+**What:** data-driven planner to pick topics and candidate speakers.  
+**Inputs:** Slack ask trends \+ mastermind themes \+ intake bottlenecks.  
+**Outputs:** ranked topics \+ recommended internal speakers (from expertise proofs/wins).  
+**Acceptance:** generates 2–4 suggested workshop topics/month with rationale.
+
+---
+
+### **P0.19 Perks Partner Pipeline Automation (perks campaign → hub)**
+
+From B2B doc: perks campaign intake/acceptance → auto-add to perks hub \+ Slack feed.  
+**What:** partner application pipeline \+ auto publish.  
+**Outputs:** perk records, Slack \#perks announcement entries.  
+**Acceptance:** no manual copy/paste; perk hub stays current.
+
+---
+
+### **P0.20 Internal AI Chat (dashboard)**
+
+**What:** a chat interface for CM/founders to query the system.  
+**Acceptance:** answers cite evidence and can generate action drafts.
+
+---
+
+## **P1 — High leverage (ship immediately after P0 stabilizes)**
+
+### **P1.1 Progress & Narrative Builder (renewal evidence pack)**
+
+Sora Media feature upgraded for B2B: show member progress so renewals feel obvious.  
+**Outputs:**
+
+* “how you evolved” narrative  
+* wins, intros outcomes, perks value, attendance, mindset shifts  
+* internal renewal brief for CM
+
+---
+
+### **P1.2 Market Signals Curator (high signal, low noise)**
+
+From B2B: “market signals” channel and high-signal engagement.  
+**What:** weekly curated signals \+ prompts based on member priorities.  
+**Outputs:** candidate signals \+ posting drafts (for CM to post).
+
+---
+
+### **P1.3 Velocity Program Ops Support (high standards program)**
+
+From B2B: Velocity weekly challenges \+ proof \+ kick/rejoin rules.  
+**What:** internal tooling to:
+
+* propose challenge themes based on member goals  
+* track participation/proof links  
+* highlight top performers for wins/speaking
+
+---
+
+### **P1.4 Advanced segmentation (persona clustering)**
+
+Cluster members by:
+
+* GTM motion, stage, ACV, bottleneck types, stack similarities  
+  Outputs:  
+* better intros  
+* better workshop targeting  
+* better forced-success recommendations
+
+---
+
+## **P2 — Strong add-ons (after core is proven)**
+
+### **P2.1 Channel Intelligence (all tactics have a channel, but smart joins)**
+
+B2B requirement: “All tactics should have a channel.”  
+**What:**
+
+* recommend which tactic channels members should join based on intake \+ behavior  
+* detect dead/noisy channels and recommend merge/split
+
+---
+
+### **P2.2 Ask-to-Resolution Autoloops**
+
+When a member posts an ask:
+
+* suggest resource(s)  
+* suggest intro(s)  
+* schedule follow-up outcome capture
+
+---
+
+### **P2.3 Hiring & People matching enhancements**
+
+Use hiring signals \+ member needs to:
+
+* match members to operators and peers  
+* suggest intros to members who solved similar hiring challenges
+
+---
+
+### **P2.4 Perks ROI Model (defensible savings estimates)**
+
+Estimate savings conservatively and feed renewal narratives.
+
+---
+
+## **P3 — Later / experimental**
+
+### **P3.1 Member-facing AI (Slack bot for members)**
+
+Not Phase 1, but future capability.
+
+### **P3.2 App integration \+ push notifications**
+
+Sora Media asked for app dashboard \+ push; B2B is Slack-first.
+
+### **P3.3 Automated no-sell enforcement**
+
+B2B wants manual enforcement for now; automation later if needed.
+
+---
+
+## **7\) Dashboard spec (what the CM actually uses)**
+
+### **7.1 Member profile view (core page)**
+
+Must include:
+
+* Company snapshot (industry, revenue band, growth stage)  
+* Personal goals (calls \+ Slack \+ surveys)  
+* Current bottlenecks (Slack \+ calls)  
+* Emotional state trend  
+* Engagement velocity / churn trend  
+* Stack \+ categories  
+* Hiring plans  
+* Latest signals (Slack \+ LinkedIn \+ careers \+ calls)  
+* Suggested actions (ranked)  
+* Draft messages (ready to send / queued)  
+* Interaction history (intros, perks, outcomes)
+
+**Actions on page:**
+
+* “Generate briefing”  
+* “Generate DM”  
+* “Send DM” / “Approve auto-send”  
+* “Create intro”  
+* “Send perk”  
+* “Mark conversation closed”  
+* “Log outcome / request outcome”
+
+### **7.2 Who Needs Attention (weekly)**
+
+* ranked list  
+* reason  
+* playbook  
+* one-click draft
+
+### **7.3 Opportunity feed (real-time-ish)**
+
+* filter by source: Slack / LinkedIn / careers / calls / surveys  
+* filter by type: hiring / pain / win / topic trend / perk opportunity
+
+### **7.4 Drafts queue**
+
+* impact score  
+* auto-send eligible flag  
+* merge suggestions (avoid multiple messages about similar events)
+
+### **7.5 Forced-success weekly queue**
+
+* due this week  
+* recommended action  
+* blocked vs eligible
+
+### **7.6 Intros queue \+ outcomes**
+
+* pending intros  
+* requested outcomes  
+* low-score escalations
+
+### **7.7 Perks queue \+ outcomes**
+
+* recommended perks by member  
+* redemption feedback  
+* low-score escalations
+
+### **7.8 Programming planner**
+
+* mastermind intersection topics  
+* workshop topics  
+* speaker candidates
+
+---
+
+## **8\) Automation rules (locked)**
+
+### **8.1 LinkedIn \+ careers refresh cadence**
+
+* Every 12 hours per member:  
+  * fetch public LinkedIn signals  
+  * fetch careers page deltas  
+  * run analysis summarization  
+  * store summary \+ link \+ tags  
+  * create opportunity items ranked by recency
+
+### **8.2 Auto-send DM rules**
+
+* Send if:  
+  * (member replied after last outbound) OR (conversation closed)  
+  * and 24h since last message  
+* If not eligible:  
+  * hold draft in queue for CM review
+
+### **8.3 Weekly value guarantee**
+
+* Every week per member:  
+  * generate best action (intro \> perk \> resource \> invite \> check-in)  
+  * queue as forced-success  
+  * deliver automatically if eligible; otherwise highlight for CM
+
+### **8.4 Outcome capture rules**
+
+* Intro outcome: 1–10 rating  
+* Perk outcome: 1–10 rating  
+* Workshop outcome: 1–10 rating  
+* If rating \< 6:  
+  * require feedback (text or audio)  
+  * run sentiment check; escalate to CM if negative
+
+---
+
+## **9\) Implementation phases (aligned to Feb 15 target)**
+
+From ZRG timeline: B2BCMO Club Community AI completion target \= **Feb 15**.
+
+### **Phase 1 (ship by Feb 15\) — “Concierge Core \+ Live signals \+ Weekly value”**
+
+Deliver:
+
+* P0 features 0.1–0.20 (above), with working dashboard and auto-send gating  
+* Working LinkedIn/careers connector layer (public signals \+ 12-hour schedule)  
+* Working weekly forced-success queue \+ delivery logic
+
+### **Phase 2 (post‑Feb 15\) — “Retention proof \+ advanced programming”**
+
+Deliver:
+
+* Progress & narrative builder  
+* market signals curation  
+* velocity ops support  
+* segmentation improvements
+
+---
+
+## **10\) Known risks & mitigation (kept inside the plan)**
+
+1. **Public-only LinkedIn may not expose everything** (job changes/hiring signals may be incomplete).  
+   *Mitigation:* combine LinkedIn with company careers pages; treat missing data as “unknown” and rely on intake/surveys.  
+2. **Mastermind scaling at 1 per 5 members** can create many groups quickly.  
+   *Mitigation:* automate group creation, leader rotation, and agenda intersection suggestions.  
+3. **No max DM frequency** can still feel spammy if a member replies frequently.  
+   *Mitigation:* impact scoring \+ merge drafts \+ allow CM per-member mute/throttle toggle if needed.  
+4. **Outcome loops increase operational overhead**  
+   *Mitigation:* automate outcome requests and only escalate to CM when rating \<6 or negative sentiment.
+
+---
+
+## **11\) One-page priority map (for build execution)**
+
+**P0 (ship by Feb 15):**
+
+* Intake Completeness \+ Identity Stitching (P0.0)  
+* Truth Graph \+ Provenance Storage (Supabase/Prisma)  
+* Slack ingestion (messages/threads/reactions)  
+* Recall.ai transcript ingestion (intake \+ masterminds)  
+* Survey ingestion (monthly/quarterly refresh)  
+* Knowledge corpus indexing (CourseCreator360 \+ club policies)  
+* LinkedIn \+ Careers harvester (12-hour cadence \+ summarization)  
+* Member Truth Profile 2.0 (unified intelligence profile)  
+* Concierge Briefing Agent (pre-interaction)  
+* Attention Radar (who needs attention \+ risk scoring \+ playbooks)  
+* Opportunity-to-Action engine (live \+ forced-success)  
+* Intro engine \+ outcome tracking (1–10 ratings; \<6 feedback required)  
+* Perks concierge \+ perks partner pipeline \+ outcomes  
+* Weekly forced-success engine (≥1 value drop/member/week)  
+* Conversation-aware messaging orchestrator (drafts \+ impact scoring \+ auto-send gating)  
+* Mastermind grouping intelligence (\~5/member) \+ intersection agendas \+ monthly club-wide agenda template  
+* Programming planner (2–4 workshops/speaker events per month)  
+* Internal AI chat (dashboard)
+
+**P1:**
+
+* Progress & Narrative Builder (renewal evidence pack)  
+* Market Signals Curator (high-signal prompts)  
+* Velocity Program Ops Support  
+* Advanced segmentation/persona clustering
+
+**P2:**
+
+* Channel intelligence (smart channel join recommendations \+ merge/split suggestions)  
+* Ask-to-Resolution autoloops  
+* Hiring & people matching enhancements  
+* Perks ROI model (defensible savings)
+
+**P3:**
+
+* Member-facing AI (Slack bot) — later  
+* App integration \+ push notifications — later  
+* Automated no-sell enforcement — later
+
