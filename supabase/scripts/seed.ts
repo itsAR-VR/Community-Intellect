@@ -170,8 +170,7 @@ async function main() {
   }
 
   const tenants: Array<{ id: TenantId; name: string }> = [
-    { id: "b2b", name: "B2B CMO Club" },
-    { id: "founders", name: "Founders Club" },
+    { id: "b2b", name: "B2B-CMO-Club" },
   ]
 
   const { error: tenantsError } = await supabase.from("tenants").upsert(tenants)

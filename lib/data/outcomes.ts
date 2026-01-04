@@ -1,78 +1,59 @@
 import "server-only"
 
 import { randomUUID } from "crypto"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
 import type { InteractionLog, OutcomeFeedback, TenantId } from "@/lib/types"
-import { nullToUndefined } from "@/lib/data/_utils"
+import { dateToIso, dateToIsoOrUndefined, nullToUndefined } from "@/lib/data/_utils"
+import { prisma } from "@/lib/prisma"
 
 function interactionRowToInteraction(row: any): InteractionLog {
   return {
     id: row.id,
-    memberId: row.member_id,
+    memberId: row.memberId,
     type: row.type,
     channel: row.channel,
     summary: row.summary,
-    draftId: nullToUndefined(row.draft_id),
-    createdBy: row.created_by,
-    createdAt: row.created_at,
+    draftId: nullToUndefined(row.draftId),
+    createdBy: row.createdBy,
+    createdAt: dateToIso(row.createdAt),
   }
 }
 
 function outcomeRowToOutcome(row: any): OutcomeFeedback {
   return {
     id: row.id,
-    memberId: row.member_id,
-    interactionId: row.interaction_id,
+    memberId: row.memberId,
+    interactionId: row.interactionId,
     rating: row.rating,
     feedback: nullToUndefined(row.feedback),
     escalated: row.escalated,
-    escalationReason: nullToUndefined(row.escalation_reason),
-    resolvedAt: nullToUndefined(row.resolved_at),
-    resolvedBy: nullToUndefined(row.resolved_by),
-    createdAt: row.created_at,
+    escalationReason: nullToUndefined(row.escalationReason),
+    resolvedAt: dateToIsoOrUndefined(row.resolvedAt),
+    resolvedBy: nullToUndefined(row.resolvedBy),
+    createdAt: dateToIso(row.createdAt),
   }
 }
 
 export async function getInteractionLogsByMember(memberId: string): Promise<InteractionLog[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase.from("interaction_logs").select("*").eq("member_id", memberId).order("created_at", {
-    ascending: false,
-  })
-  if (error) throw error
-  return (data ?? []).map(interactionRowToInteraction)
+  const data = await prisma.interactionLog.findMany({ where: { memberId }, orderBy: { createdAt: "desc" } })
+  return data.map(interactionRowToInteraction)
 }
 
 export async function getOutcomeFeedbackByMember(memberId: string): Promise<OutcomeFeedback[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase.from("outcome_feedback").select("*").eq("member_id", memberId).order("created_at", {
-    ascending: false,
-  })
-  if (error) throw error
-  return (data ?? []).map(outcomeRowToOutcome)
+  const data = await prisma.outcomeFeedback.findMany({ where: { memberId }, orderBy: { createdAt: "desc" } })
+  return data.map(outcomeRowToOutcome)
 }
 
 export async function getOutcomeFeedbackForTenant(tenantId: TenantId): Promise<OutcomeFeedback[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("outcome_feedback")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(outcomeRowToOutcome)
+  const data = await prisma.outcomeFeedback.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } })
+  return data.map(outcomeRowToOutcome)
 }
 
 export async function getEscalatedOutcomeFeedbackForTenant(tenantId: TenantId): Promise<OutcomeFeedback[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("outcome_feedback")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .eq("escalated", true)
-    .is("resolved_at", null)
-    .order("created_at", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(outcomeRowToOutcome)
+  const data = await prisma.outcomeFeedback.findMany({
+    where: { tenantId, escalated: true, resolvedAt: null },
+    orderBy: { createdAt: "desc" },
+  })
+  return data.map(outcomeRowToOutcome)
 }
 
 export async function submitOutcome(input: {
@@ -84,26 +65,22 @@ export async function submitOutcome(input: {
   feedback?: string
   escalationReason?: string
 }): Promise<OutcomeFeedback> {
-  const supabase = await createSupabaseServerClient()
-  const now = new Date().toISOString()
+  const now = new Date()
   const id = input.id ?? randomUUID()
   const escalated = input.rating < 6
 
-  const { data, error } = await supabase
-    .from("outcome_feedback")
-    .insert({
+  const data = await prisma.outcomeFeedback.create({
+    data: {
       id,
-      tenant_id: input.tenantId,
-      member_id: input.memberId,
-      interaction_id: input.interactionId,
+      tenantId: input.tenantId,
+      memberId: input.memberId,
+      interactionId: input.interactionId,
       rating: input.rating,
       feedback: input.feedback ?? null,
       escalated,
-      escalation_reason: input.escalationReason ?? null,
-      created_at: now,
-    })
-    .select("*")
-    .single()
-  if (error) throw error
+      escalationReason: input.escalationReason ?? null,
+      createdAt: now,
+    },
+  })
   return outcomeRowToOutcome(data)
 }

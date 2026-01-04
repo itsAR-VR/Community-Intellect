@@ -1,107 +1,78 @@
 import "server-only"
 
-import { createSupabaseServerClient } from "@/lib/supabase/server"
 import type { MastermindGroup, MonthlyClubAgenda, TenantId, WorkshopPlan } from "@/lib/types"
-import { nullToUndefined } from "@/lib/data/_utils"
+import { dateToIso, dateToIsoOrUndefined, nullToUndefined } from "@/lib/data/_utils"
+import { prisma } from "@/lib/prisma"
 
 function mastermindRowToGroup(row: any): MastermindGroup {
   return {
     id: row.id,
-    tenantId: row.tenant_id,
+    tenantId: row.tenantId,
     name: row.name,
     theme: nullToUndefined(row.theme),
-    memberIds: row.member_ids ?? [],
-    leaderId: row.leader_id,
-    nextSessionAt: nullToUndefined(row.next_session_at),
-    rotationSchedule: row.rotation_schedule ?? [],
-    agendaDraft: nullToUndefined(row.agenda_draft),
-    followUpItems: (row.follow_up_items ?? []) as MastermindGroup["followUpItems"],
-    createdAt: row.created_at,
+    memberIds: row.memberIds ?? [],
+    leaderId: row.leaderId,
+    nextSessionAt: dateToIsoOrUndefined(row.nextSessionAt),
+    rotationSchedule: row.rotationSchedule ?? [],
+    agendaDraft: nullToUndefined(row.agendaDraft),
+    followUpItems: (row.followUpItems ?? []) as MastermindGroup["followUpItems"],
+    createdAt: dateToIso(row.createdAt),
   }
 }
 
 function agendaRowToAgenda(row: any): MonthlyClubAgenda {
   return {
     id: row.id,
-    tenantId: row.tenant_id,
+    tenantId: row.tenantId,
     month: row.month,
     themes: row.themes ?? [],
     template: row.template,
     speakers: (row.speakers ?? []) as MonthlyClubAgenda["speakers"],
     workshops: (row.workshops ?? []) as MonthlyClubAgenda["workshops"],
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: dateToIso(row.createdAt),
+    updatedAt: dateToIso(row.updatedAt),
   }
 }
 
 function workshopRowToWorkshop(row: any): WorkshopPlan {
   return {
     id: row.id,
-    tenantId: row.tenant_id,
+    tenantId: row.tenantId,
     title: row.title,
     topic: row.topic,
-    suggestedSpeakers: (row.suggested_speakers ?? []) as WorkshopPlan["suggestedSpeakers"],
-    targetAudience: row.target_audience ?? [],
+    suggestedSpeakers: (row.suggestedSpeakers ?? []) as WorkshopPlan["suggestedSpeakers"],
+    targetAudience: row.targetAudience ?? [],
     status: row.status,
-    scheduledAt: nullToUndefined(row.scheduled_at),
-    createdAt: row.created_at,
+    scheduledAt: dateToIsoOrUndefined(row.scheduledAt),
+    createdAt: dateToIso(row.createdAt),
   }
 }
 
 export async function getMastermindGroups(tenantId: TenantId): Promise<MastermindGroup[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("mastermind_groups")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(mastermindRowToGroup)
+  const data = await prisma.mastermindGroup.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: "desc" },
+  })
+  return data.map(mastermindRowToGroup)
 }
 
 export async function getMonthlyAgenda(tenantId: TenantId, month: string): Promise<MonthlyClubAgenda | null> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("monthly_agendas")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .eq("month", month)
-    .maybeSingle()
-  if (error) throw error
+  const data = await prisma.monthlyAgenda.findFirst({ where: { tenantId, month } })
   return data ? agendaRowToAgenda(data) : null
 }
 
 export async function getMonthlyAgendas(tenantId: TenantId): Promise<MonthlyClubAgenda[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("monthly_agendas")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .order("month", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(agendaRowToAgenda)
+  const data = await prisma.monthlyAgenda.findMany({ where: { tenantId }, orderBy: { month: "desc" } })
+  return data.map(agendaRowToAgenda)
 }
 
 export async function getWorkshopPlans(tenantId: TenantId): Promise<WorkshopPlan[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("workshop_plans")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(workshopRowToWorkshop)
+  const data = await prisma.workshopPlan.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } })
+  return data.map(workshopRowToWorkshop)
 }
 
 export async function updateMastermindAgenda(id: string, agendaDraft: string): Promise<MastermindGroup | null> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("mastermind_groups")
-    .update({ agenda_draft: agendaDraft })
-    .eq("id", id)
-    .select("*")
-    .maybeSingle()
-  if (error) throw error
+  const data = await prisma.mastermindGroup.update({ where: { id }, data: { agendaDraft } }).catch(() => null)
   return data ? mastermindRowToGroup(data) : null
 }
 
@@ -114,24 +85,20 @@ export async function createMastermindGroup(input: {
   memberIds: string[]
   nextSessionAt?: string
 }): Promise<MastermindGroup> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("mastermind_groups")
-    .insert({
+  const data = await prisma.mastermindGroup.create({
+    data: {
       id: input.id,
-      tenant_id: input.tenantId,
+      tenantId: input.tenantId,
       name: input.name,
       theme: input.theme ?? null,
-      leader_id: input.leaderId,
-      member_ids: input.memberIds,
-      next_session_at: input.nextSessionAt ?? null,
-      rotation_schedule: [],
-      agenda_draft: null,
-      follow_up_items: [],
-    })
-    .select("*")
-    .single()
-  if (error) throw error
+      leaderId: input.leaderId,
+      memberIds: input.memberIds,
+      nextSessionAt: input.nextSessionAt ? new Date(input.nextSessionAt) : null,
+      rotationSchedule: [],
+      agendaDraft: null,
+      followUpItems: [],
+    },
+  })
   return mastermindRowToGroup(data)
 }
 
@@ -142,21 +109,17 @@ export async function createMonthlyAgenda(input: {
   themes: string[]
   template: string
 }): Promise<MonthlyClubAgenda> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("monthly_agendas")
-    .insert({
+  const data = await prisma.monthlyAgenda.create({
+    data: {
       id: input.id,
-      tenant_id: input.tenantId,
+      tenantId: input.tenantId,
       month: input.month,
       themes: input.themes,
       template: input.template,
       speakers: [],
       workshops: [],
-    })
-    .select("*")
-    .single()
-  if (error) throw error
+    },
+  })
   return agendaRowToAgenda(data)
 }
 
@@ -165,12 +128,10 @@ export async function updateMonthlyAgenda(input: {
   themes?: string[]
   template?: string
 }): Promise<MonthlyClubAgenda | null> {
-  const supabase = await createSupabaseServerClient()
   const patch: Record<string, unknown> = {}
   if (input.themes) patch.themes = input.themes
   if (input.template !== undefined) patch.template = input.template
 
-  const { data, error } = await supabase.from("monthly_agendas").update(patch).eq("id", input.id).select("*").maybeSingle()
-  if (error) throw error
+  const data = await prisma.monthlyAgenda.update({ where: { id: input.id }, data: patch }).catch(() => null)
   return data ? agendaRowToAgenda(data) : null
 }

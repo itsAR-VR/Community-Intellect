@@ -2,18 +2,16 @@ import "server-only"
 
 import type { NotificationItem } from "@/lib/types"
 import { getNotifications as dbGetNotifications, markNotificationRead as dbMarkNotificationRead } from "@/lib/data"
-import { requireWhoami } from "@/lib/auth/whoami"
+import { requireClubAccess } from "@/lib/auth/tenant-access"
+import { CLUB_TENANT_ID } from "@/lib/club"
 
 export async function getNotifications(unreadOnly = false): Promise<NotificationItem[]> {
-  const whoami = await requireWhoami()
-  const results = await Promise.all(whoami.tenants.map((t) => dbGetNotifications(t.id, unreadOnly)))
-  return results
-    .flat()
-    .filter((n) => (unreadOnly ? !n.read : true))
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  await requireClubAccess()
+  return dbGetNotifications(CLUB_TENANT_ID, unreadOnly)
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
+  await requireClubAccess()
   await dbMarkNotificationRead(id)
 }
 

@@ -7,12 +7,37 @@ function mustGetEnv(name: string): string {
   return value
 }
 
+function maybeRedirectLegacyTenantPath(request: NextRequest): NextResponse | null {
+  const pathname = request.nextUrl.pathname
+  if (pathname.startsWith("/app/api/")) return null
+
+  // Legacy multi-tenant URLs looked like `/app/:tenantId/...`.
+  // The app is now single-tenant, so we strip the tenant segment.
+  const match = pathname.match(/^\/app\/(b2b|founders)(?:\/(.*))?$/)
+  if (!match) return null
+
+  const rest = match[2] ?? "overview"
+  const url = request.nextUrl.clone()
+  url.pathname = `/app/${rest}`
+  return NextResponse.redirect(url)
+}
+
 export async function middleware(request: NextRequest) {
+  const legacyRedirect = maybeRedirectLegacyTenantPath(request)
+  if (legacyRedirect) return legacyRedirect
+
+  const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID()
+
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set("x-request-id", requestId)
+
   let response = NextResponse.next({
     request: {
-      headers: request.headers,
+      headers: requestHeaders,
     },
   })
+
+  response.headers.set("x-request-id", requestId)
 
   const supabase = createServerClient(mustGetEnv("NEXT_PUBLIC_SUPABASE_URL"), mustGetEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"), {
     cookies: {

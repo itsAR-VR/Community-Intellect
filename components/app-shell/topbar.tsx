@@ -1,5 +1,4 @@
 "use client"
-import { useRouter } from "next/navigation"
 import type React from "react"
 
 import { Moon, Sun, LogOut, User } from "lucide-react"
@@ -14,25 +13,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { TenantSwitcher } from "./tenant-switcher"
 import { GlobalSearch } from "./global-search"
 import { Notifications } from "./notifications"
 import { useAuth } from "@/hooks/use-auth"
-import type { TenantId } from "@/lib/types"
 
 interface TopbarProps {
-  tenantId: TenantId
   children?: React.ReactNode
 }
 
-export function Topbar({ tenantId, children }: TopbarProps) {
-  const { user, tenants, logout } = useAuth()
+export function Topbar({ children }: TopbarProps) {
+  const { user, club, logout } = useAuth()
   const { theme, setTheme } = useTheme()
-  const router = useRouter()
-
-  const handleTenantChange = (newTenantId: TenantId) => {
-    router.push(`/app/${newTenantId}/overview`)
-  }
 
   const handleLogout = () => {
     void logout()
@@ -43,18 +34,14 @@ export function Topbar({ tenantId, children }: TopbarProps) {
       {children}
 
       <div className="flex flex-1 items-center gap-4">
-        <TenantSwitcher
-          value={tenantId}
-          tenants={tenants.map((t) => ({ value: t.id, label: t.name }))}
-          onValueChange={handleTenantChange}
-        />
         <div className="flex-1 md:max-w-md">
-          <GlobalSearch tenantId={tenantId} />
+          <GlobalSearch />
         </div>
+        {club ? <div className="hidden lg:block text-sm text-muted-foreground">{club.name}</div> : null}
       </div>
 
       <div className="flex items-center gap-2">
-        <Notifications tenantId={tenantId} />
+        <Notifications />
 
         <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
           <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />

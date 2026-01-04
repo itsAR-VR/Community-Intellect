@@ -1,68 +1,58 @@
 import "server-only"
 
-import { createSupabaseServerClient } from "@/lib/supabase/server"
 import type { OpportunityItem, TenantId } from "@/lib/types"
-import { nullToUndefined } from "@/lib/data/_utils"
+import { dateToIso, dateToIsoOrUndefined, nullToUndefined } from "@/lib/data/_utils"
+import { prisma } from "@/lib/prisma"
 
 function opportunityRowToOpportunity(row: any): OpportunityItem {
   return {
     id: row.id,
-    memberId: row.member_id,
+    memberId: row.memberId,
     summary: row.summary,
     tags: row.tags ?? [],
     urgency: row.urgency,
     confidence: row.confidence,
     source: row.source,
-    signalId: nullToUndefined(row.signal_id),
-    recommendedActions: (row.recommended_actions ?? []) as OpportunityItem["recommendedActions"],
+    signalId: nullToUndefined(row.signalId),
+    recommendedActions: (row.recommendedActions ?? []) as OpportunityItem["recommendedActions"],
     dismissed: row.dismissed,
-    dismissedAt: nullToUndefined(row.dismissed_at),
-    dismissedBy: nullToUndefined(row.dismissed_by),
-    createdAt: row.created_at,
+    dismissedAt: dateToIsoOrUndefined(row.dismissedAt),
+    dismissedBy: nullToUndefined(row.dismissedBy),
+    createdAt: dateToIso(row.createdAt),
   }
 }
 
 export async function getOpportunities(tenantId: TenantId): Promise<OpportunityItem[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("opportunities")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(opportunityRowToOpportunity)
+  const data = await prisma.opportunity.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: "desc" },
+  })
+  return data.map(opportunityRowToOpportunity)
 }
 
 export async function getOpportunitiesByMember(memberId: string): Promise<OpportunityItem[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("opportunities")
-    .select("*")
-    .eq("member_id", memberId)
-    .order("created_at", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(opportunityRowToOpportunity)
+  const data = await prisma.opportunity.findMany({
+    where: { memberId },
+    orderBy: { createdAt: "desc" },
+  })
+  return data.map(opportunityRowToOpportunity)
 }
 
 export async function getOpportunityById(id: string): Promise<OpportunityItem | null> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase.from("opportunities").select("*").eq("id", id).maybeSingle()
-  if (error) throw error
+  const data = await prisma.opportunity.findUnique({ where: { id } })
   return data ? opportunityRowToOpportunity(data) : null
 }
 
 export async function dismissOpportunity(id: string, dismissedBy: string): Promise<OpportunityItem | null> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("opportunities")
+  const data = await prisma.opportunity
     .update({
-      dismissed: true,
-      dismissed_at: new Date().toISOString(),
-      dismissed_by: dismissedBy,
+      where: { id },
+      data: {
+        dismissed: true,
+        dismissedAt: new Date(),
+        dismissedBy,
+      },
     })
-    .eq("id", id)
-    .select("*")
-    .maybeSingle()
-  if (error) throw error
+    .catch(() => null)
   return data ? opportunityRowToOpportunity(data) : null
 }

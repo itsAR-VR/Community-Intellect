@@ -1,0 +1,783 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+enum UserRole {
+  admin
+  community_manager
+  read_only
+
+  @@map("user_role")
+}
+
+model Tenant {
+  id        String   @id
+  name      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  profiles     Profile[]
+  tenantUsers  TenantUser[]
+  members      Member[]
+  facts        Fact[]
+  signals      ExternalSignal[]
+  introSuggestions IntroSuggestion[]
+  introRecords IntroRecord[]
+  opportunities Opportunity[]
+  drafts       MessageDraft[]
+  forcedSuccess ForcedSuccessItem[]
+  perks        Perk[]
+  perkRecommendations PerkRecommendation[]
+  perkPartnerApplications PerkPartnerApplication[]
+  mastermindGroups MastermindGroup[]
+  monthlyAgendas MonthlyAgenda[]
+  workshopPlans WorkshopPlan[]
+  pods          Pod[]
+  surveys       Survey[]
+  resources     Resource[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  chatThreads   ChatThread[]
+  chatMessages  ChatMessage[]
+  personaClusters PersonaCluster[]
+  wrapped       MemberWrapped[]
+  interactions  InteractionLog[]
+  outcomeFeedback OutcomeFeedback[]
+  tenantSettings TenantSettings?
+  velocityChallenges VelocityChallenge[]
+  velocityProofs VelocityProof[]
+  slackEvents   SlackEvent[]
+  slackIdentities SlackIdentity[]
+  slackDmThreads SlackDmThread[]
+  outboundMessages OutboundMessage[]
+
+  @@map("tenants")
+}
+
+model Profile {
+  id              String    @id @db.Uuid
+  email           String?
+  fullName        String?   @map("full_name")
+  role            UserRole  @default(read_only)
+  defaultTenantId String?   @map("default_tenant_id")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  defaultTenant Tenant? @relation(fields: [defaultTenantId], references: [id])
+  tenantUsers   TenantUser[]
+
+  @@map("profiles")
+}
+
+model TenantUser {
+  tenantId  String   @map("tenant_id")
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, userId])
+  @@index([userId])
+  @@map("tenant_users")
+}
+
+model Member {
+  id              String   @id
+  tenantId        String   @map("tenant_id")
+  firstName       String   @map("first_name")
+  lastName        String   @map("last_name")
+  email           String
+  avatarUrl       String?  @map("avatar_url")
+  linkedinUrl     String?  @map("linkedin_url")
+  companyName     String   @map("company_name")
+  companyRole     String   @map("company_role")
+  companyWebsite  String?  @map("company_website")
+  companyStage    String?  @map("company_stage")
+  companyHeadcount String? @map("company_headcount")
+  companyIndustry String?  @map("company_industry")
+  status          String
+  joinedAt        DateTime @map("joined_at") @db.Timestamptz(6)
+  renewalDate     DateTime? @map("renewal_date") @db.Timestamptz(6)
+  riskTier        String   @map("risk_tier")
+  riskScore       Int      @map("risk_score")
+  engagementScore Int      @map("engagement_score")
+  lastEngagementAt DateTime? @map("last_engagement_at") @db.Timestamptz(6)
+  contactState    String   @map("contact_state")
+  lastContactedAt DateTime? @map("last_contacted_at") @db.Timestamptz(6)
+  lastValueDropAt DateTime? @map("last_value_drop_at") @db.Timestamptz(6)
+  onboarding      Json     @default(dbgenerated("'{}'::jsonb"))
+  tags            String[] @default([]) @db.Text
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facts  Fact[]
+  signals ExternalSignal[]
+  opportunities Opportunity[]
+  drafts MessageDraft[]
+  forcedSuccess ForcedSuccessItem[]
+  perkRecommendations PerkRecommendation[]
+  surveys Survey[]
+  mastermindGroupsAsLeader MastermindGroup[]
+  wrapped MemberWrapped[]
+  interactions InteractionLog[]
+  outcomeFeedback OutcomeFeedback[]
+  velocityProofs VelocityProof[]
+  introSuggestionsA IntroSuggestion[] @relation("IntroSuggestionA")
+  introSuggestionsB IntroSuggestion[] @relation("IntroSuggestionB")
+  introRecordsA IntroRecord[] @relation("IntroRecordA")
+  introRecordsB IntroRecord[] @relation("IntroRecordB")
+  slackIdentities SlackIdentity[]
+  slackDmThreads SlackDmThread[]
+  outboundMessages OutboundMessage[]
+
+  @@index([tenantId])
+  @@index([email])
+  @@map("members")
+}
+
+model Fact {
+  id         String   @id
+  tenantId   String   @map("tenant_id")
+  memberId   String   @map("member_id")
+  category   String
+  key        String
+  value      String
+  confidence Int
+  provenance String
+  evidence   Json?
+  verifiedAt DateTime? @map("verified_at") @db.Timestamptz(6)
+  verifiedBy String?  @map("verified_by")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@map("facts")
+}
+
+model ExternalSignal {
+  id          String   @id
+  tenantId    String   @map("tenant_id")
+  memberId    String   @map("member_id")
+  source      String
+  type        String
+  whatHappened String  @map("what_happened")
+  impliedNeeds String[] @default([]) @map("implied_needs") @db.Text
+  tags        String[] @default([]) @db.Text
+  urgency     Int
+  confidence  Int
+  evidence    Json     @default(dbgenerated("'{}'::jsonb"))
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@index([createdAt])
+  @@map("external_signals")
+}
+
+model Opportunity {
+  id                 String   @id
+  tenantId           String   @map("tenant_id")
+  memberId           String   @map("member_id")
+  summary            String
+  tags               String[] @default([]) @db.Text
+  urgency            Int
+  confidence         Int
+  source             String
+  signalId           String?  @map("signal_id")
+  recommendedActions Json     @default(dbgenerated("'[]'::jsonb")) @map("recommended_actions")
+  dismissed          Boolean  @default(false)
+  dismissedAt        DateTime? @map("dismissed_at") @db.Timestamptz(6)
+  dismissedBy        String?  @map("dismissed_by")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@index([dismissed])
+  @@map("opportunities")
+}
+
+model MessageDraft {
+  id                      String   @id
+  tenantId                String   @map("tenant_id")
+  memberId                String   @map("member_id")
+  actionType              String   @map("action_type")
+  subject                 String?
+  content                 String
+  impactScore             Int      @map("impact_score")
+  autosendEligible        Boolean  @default(false) @map("autosend_eligible")
+  blockedReasons          String[] @default([]) @map("blocked_reasons") @db.Text
+  sendRecommendation      String   @map("send_recommendation")
+  status                  String
+  mergedWithId            String?  @map("merged_with_id")
+  generatedFromOpportunityId String? @map("generated_from_opportunity_id")
+  generatedFromActionId   String?  @map("generated_from_action_id")
+  editedAt                DateTime? @map("edited_at") @db.Timestamptz(6)
+  editedBy                String?  @map("edited_by")
+  sentAt                  DateTime? @map("sent_at") @db.Timestamptz(6)
+  sentBy                  String?  @map("sent_by")
+  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  outboundMessages OutboundMessage[]
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@index([status])
+  @@map("message_drafts")
+}
+
+model ForcedSuccessItem {
+  id                  String   @id
+  tenantId            String   @map("tenant_id")
+  memberId            String   @map("member_id")
+  weekOf              String   @map("week_of")
+  recommendedActionType String @map("recommended_action_type")
+  recommendedActions  Json     @default(dbgenerated("'[]'::jsonb")) @map("recommended_actions")
+  deliveredActionType String?  @map("delivered_action_type")
+  deliveredAt         DateTime? @map("delivered_at") @db.Timestamptz(6)
+  deliveredBy         String?  @map("delivered_by")
+  draftId             String?  @map("draft_id")
+  blocked             Boolean  @default(false)
+  blockedReason       String?  @map("blocked_reason")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, weekOf])
+  @@index([memberId])
+  @@map("forced_success_items")
+}
+
+model IntroSuggestion {
+  id             String   @id
+  tenantId       String   @map("tenant_id")
+  memberAId      String   @map("member_a_id")
+  memberBId      String   @map("member_b_id")
+  rationale      String
+  impactScore    Int      @map("impact_score")
+  matchingFactIds String[] @default([]) @map("matching_fact_ids") @db.Text
+  dismissed      Boolean  @default(false)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  memberA Member @relation("IntroSuggestionA", fields: [memberAId], references: [id], onDelete: Cascade)
+  memberB Member @relation("IntroSuggestionB", fields: [memberBId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("intro_suggestions")
+}
+
+model IntroRecord {
+  id         String   @id
+  tenantId   String   @map("tenant_id")
+  memberAId  String   @map("member_a_id")
+  memberBId  String   @map("member_b_id")
+  status     String
+  suggestionId String? @map("suggestion_id")
+  messageToA String?  @map("message_to_a")
+  messageToB String?  @map("message_to_b")
+  outcomeA   Json?    @map("outcome_a")
+  outcomeB   Json?    @map("outcome_b")
+  createdBy  String   @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  memberA Member @relation("IntroRecordA", fields: [memberAId], references: [id], onDelete: Cascade)
+  memberB Member @relation("IntroRecordB", fields: [memberBId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("intro_records")
+}
+
+model Perk {
+  id          String   @id
+  tenantId    String   @map("tenant_id")
+  name        String
+  description String
+  category    String
+  partnerName String   @map("partner_name")
+  partnerLogo String?  @map("partner_logo")
+  value       String?
+  url         String?
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recommendations PerkRecommendation[]
+
+  @@index([tenantId])
+  @@map("perks")
+}
+
+model PerkRecommendation {
+  id             String   @id
+  tenantId       String   @map("tenant_id")
+  memberId       String   @map("member_id")
+  perkId         String   @map("perk_id")
+  rationale      String
+  impactScore    Int      @map("impact_score")
+  matchingFactIds String[] @default([]) @map("matching_fact_ids") @db.Text
+  dismissed      Boolean  @default(false)
+  deliveredAt    DateTime? @map("delivered_at") @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  perk   Perk   @relation(fields: [perkId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@map("perk_recommendations")
+}
+
+model PerkPartnerApplication {
+  id           String   @id
+  tenantId     String   @map("tenant_id")
+  companyName  String   @map("company_name")
+  contactName  String   @map("contact_name")
+  contactEmail String   @map("contact_email")
+  perkDescription String @map("perk_description")
+  status       String
+  reviewedBy   String?  @map("reviewed_by")
+  reviewedAt   DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("perk_partner_applications")
+}
+
+model MastermindGroup {
+  id             String   @id
+  tenantId       String   @map("tenant_id")
+  name           String
+  theme          String?
+  memberIds      String[] @default([]) @map("member_ids") @db.Text
+  leaderId       String   @map("leader_id")
+  nextSessionAt  DateTime? @map("next_session_at") @db.Timestamptz(6)
+  rotationSchedule String[] @default([]) @map("rotation_schedule") @db.Text
+  agendaDraft    String?  @map("agenda_draft")
+  followUpItems  Json     @default(dbgenerated("'[]'::jsonb")) @map("follow_up_items")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leader Member @relation(fields: [leaderId], references: [id])
+
+  @@index([tenantId])
+  @@map("mastermind_groups")
+}
+
+model MonthlyAgenda {
+  id        String   @id
+  tenantId  String   @map("tenant_id")
+  month     String
+  themes    String[] @default([]) @db.Text
+  template  String
+  speakers  Json     @default(dbgenerated("'[]'::jsonb"))
+  workshops Json     @default(dbgenerated("'[]'::jsonb"))
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, month])
+  @@index([tenantId])
+  @@map("monthly_agendas")
+}
+
+model WorkshopPlan {
+  id               String   @id
+  tenantId         String   @map("tenant_id")
+  title            String
+  topic            String
+  suggestedSpeakers Json    @default(dbgenerated("'[]'::jsonb")) @map("suggested_speakers")
+  targetAudience   String[] @default([]) @map("target_audience") @db.Text
+  status           String
+  scheduledAt      DateTime? @map("scheduled_at") @db.Timestamptz(6)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("workshop_plans")
+}
+
+model Pod {
+  id                    String   @id
+  tenantId              String   @map("tenant_id")
+  name                  String
+  memberIds             String[] @default([]) @map("member_ids") @db.Text
+  monthlyGoalsPromptSent Boolean @default(false) @map("monthly_goals_prompt_sent")
+  monthlyGoalsReceived  String[] @default([]) @map("monthly_goals_received") @db.Text
+  receiptsShared        String[] @default([]) @map("receipts_shared") @db.Text
+  quietMemberIds        String[] @default([]) @map("quiet_member_ids") @db.Text
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("pods")
+}
+
+model Survey {
+  id              String   @id
+  tenantId        String   @map("tenant_id")
+  memberId        String   @map("member_id")
+  cadence         String
+  lastSentAt      DateTime? @map("last_sent_at") @db.Timestamptz(6)
+  lastCompletedAt DateTime? @map("last_completed_at") @db.Timestamptz(6)
+  completionRate  Int      @default(0) @map("completion_rate")
+  responses       Json     @default(dbgenerated("'[]'::jsonb"))
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@map("surveys")
+}
+
+model Resource {
+  id            String   @id
+  tenantId      String   @map("tenant_id")
+  title         String
+  description   String
+  type          String
+  tags          String[] @default([]) @db.Text
+  url           String?
+  content       String?
+  attachmentUrl String?  @map("attachment_url")
+  viewCount     Int      @default(0) @map("view_count")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("resources")
+}
+
+model AuditLog {
+  id         String   @id
+  tenantId   String   @map("tenant_id")
+  type       String
+  actorId    String   @map("actor_id")
+  actorRole  UserRole? @map("actor_role")
+  actorLabel String?  @map("actor_label")
+  memberId   String?  @map("member_id")
+  details    Json     @default(dbgenerated("'{}'::jsonb"))
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id          String   @id
+  tenantId    String   @map("tenant_id")
+  type        String
+  title       String
+  description String
+  memberId    String?  @map("member_id")
+  actionUrl   String?  @map("action_url")
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([read])
+  @@map("notifications")
+}
+
+model ChatThread {
+  id        String   @id
+  tenantId  String   @map("tenant_id")
+  title     String
+  context   Json?
+  createdBy String  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([tenantId])
+  @@map("chat_threads")
+}
+
+model ChatMessage {
+  id              String   @id
+  tenantId        String   @map("tenant_id")
+  threadId        String   @map("thread_id")
+  role            String
+  content         String
+  evidence        Json?
+  suggestedActions Json?  @map("suggested_actions")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+  @@index([tenantId])
+  @@map("chat_messages")
+}
+
+model PersonaCluster {
+  id             String   @id
+  tenantId       String   @map("tenant_id")
+  name           String
+  description    String
+  memberIds      String[] @default([]) @map("member_ids") @db.Text
+  characteristics String[] @default([]) @db.Text
+  suggestedUses  String[] @default([]) @map("suggested_uses") @db.Text
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("persona_clusters")
+}
+
+model MemberWrapped {
+  id            String   @id
+  tenantId      String   @map("tenant_id")
+  memberId      String   @map("member_id")
+  period        String
+  startSnapshot Json     @map("start_snapshot")
+  currentSnapshot Json   @map("current_snapshot")
+  highlights    Json
+  wins          String[] @default([]) @db.Text
+  generatedAt   DateTime @default(now()) @map("generated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@map("member_wrapped")
+}
+
+model InteractionLog {
+  id        String   @id
+  tenantId  String   @map("tenant_id")
+  memberId  String   @map("member_id")
+  type      String
+  channel   String
+  summary   String
+  draftId   String?  @map("draft_id")
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@map("interaction_logs")
+}
+
+model OutcomeFeedback {
+  id              String   @id
+  tenantId        String   @map("tenant_id")
+  memberId        String   @map("member_id")
+  interactionId   String   @map("interaction_id")
+  rating          Int
+  feedback        String?
+  escalated       Boolean  @default(false)
+  escalationReason String? @map("escalation_reason")
+  resolvedAt      DateTime? @map("resolved_at") @db.Timestamptz(6)
+  resolvedBy      String?  @map("resolved_by")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@map("outcome_feedback")
+}
+
+model TenantSettings {
+  tenantId  String   @id @map("tenant_id")
+  settings  Json     @default(dbgenerated("'{}'::jsonb"))
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_settings")
+}
+
+model VelocityChallenge {
+  id            String   @id
+  tenantId      String   @map("tenant_id")
+  title         String
+  theme         String
+  participantIds String[] @default([]) @map("participant_ids") @db.Text
+  startDate     DateTime @map("start_date") @db.Date
+  endDate       DateTime @map("end_date") @db.Date
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  proofs VelocityProof[]
+
+  @@index([tenantId])
+  @@map("velocity_challenges")
+}
+
+model VelocityProof {
+  id          String   @id
+  tenantId    String   @map("tenant_id")
+  challengeId String   @map("challenge_id")
+  memberId    String   @map("member_id")
+  link        String
+  description String
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  challenge VelocityChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  member    Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([challengeId])
+  @@map("velocity_proofs")
+}
+
+model CronJobRun {
+  id         BigInt   @id @default(autoincrement()) @db.BigInt
+  jobName    String   @map("job_name")
+  runKey     String   @map("run_key")
+  status     String   @default("started")
+  startedAt  DateTime @default(now()) @map("started_at") @db.Timestamptz(6)
+  finishedAt DateTime? @map("finished_at") @db.Timestamptz(6)
+  details    Json     @default(dbgenerated("'{}'::jsonb"))
+
+  @@unique([jobName, runKey])
+  @@map("cron_job_runs")
+}
+
+model SlackEvent {
+  id            String   @id
+  tenantId      String?  @map("tenant_id")
+  teamId        String   @map("team_id")
+  eventId       String   @unique @map("event_id")
+  eventType     String   @map("event_type")
+  eventTs       String?  @map("event_ts")
+  payload       Json     @default(dbgenerated("'{}'::jsonb"))
+  receivedAt    DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+  processedAt   DateTime? @map("processed_at") @db.Timestamptz(6)
+  processingError String? @map("processing_error")
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([receivedAt])
+  @@map("slack_events")
+}
+
+model SlackIdentity {
+  id            String   @id
+  tenantId      String   @map("tenant_id")
+  memberId      String   @map("member_id")
+  teamId        String   @map("team_id")
+  slackUserId   String   @map("slack_user_id")
+  slackEmail    String?  @map("slack_email")
+  slackDisplayName String? @map("slack_display_name")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, slackUserId])
+  @@unique([tenantId, memberId])
+  @@index([memberId])
+  @@map("slack_identities")
+}
+
+model SlackDmThread {
+  id                  String   @id
+  tenantId            String   @map("tenant_id")
+  memberId            String   @map("member_id")
+  teamId              String   @map("team_id")
+  slackChannelId      String   @map("slack_channel_id")
+  lastMessageAt       DateTime? @map("last_message_at") @db.Timestamptz(6)
+  lastMemberMessageAt DateTime? @map("last_member_message_at") @db.Timestamptz(6)
+  lastCmMessageAt     DateTime? @map("last_cm_message_at") @db.Timestamptz(6)
+  memberRepliedAt     DateTime? @map("member_replied_at") @db.Timestamptz(6)
+  conversationClosedAt DateTime? @map("conversation_closed_at") @db.Timestamptz(6)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, slackChannelId])
+  @@unique([tenantId, memberId])
+  @@index([memberId])
+  @@map("slack_dm_threads")
+}
+
+model OutboundMessage {
+  id              String   @id
+  tenantId        String   @map("tenant_id")
+  memberId        String   @map("member_id")
+  draftId         String?  @map("draft_id")
+  messageType     String   @map("message_type")
+  channel         String
+  sendAs          String   @map("send_as")
+  status          String   @default("queued")
+  body            String
+  queuedAt        DateTime @default(now()) @map("queued_at") @db.Timestamptz(6)
+  scheduledFor    DateTime? @map("scheduled_for") @db.Timestamptz(6)
+  sentAt          DateTime? @map("sent_at") @db.Timestamptz(6)
+  externalId      String?  @map("external_id")
+  threadChannelId String?  @map("thread_channel_id")
+  threadTs        String?  @map("thread_ts")
+  error           String?
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  draft  MessageDraft? @relation(fields: [draftId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@index([status])
+  @@index([queuedAt])
+  @@map("outbound_messages")
+}

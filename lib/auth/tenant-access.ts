@@ -1,12 +1,12 @@
 import "server-only"
 
-import type { TenantId } from "@/lib/types"
 import { requireWhoami } from "@/lib/auth/whoami"
 
-export async function requireTenantAccess(tenantId: TenantId) {
+export async function requireClubAccess() {
   const whoami = await requireWhoami()
-  const allowed = whoami.tenants.some((t) => t.id === tenantId)
-  if (!allowed) throw new Error("FORBIDDEN")
+  if (!whoami.club) throw new Error("FORBIDDEN")
   return whoami
 }
 
+// Back-compat alias for older route handlers (remove over time).
+export const requireTenantAccess = requireClubAccess

@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { randomUUID } from "crypto"
-import type { TenantId } from "@/lib/types"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { createForcedSuccessItem } from "@/lib/data/forced-success"
 import { createAuditEntry } from "@/lib/data/audit"
-import { requireTenantAccess } from "@/lib/auth/tenant-access"
+import { requireClubAccess } from "@/lib/auth/tenant-access"
 import { format, startOfWeek } from "date-fns"
+import { CLUB_TENANT_ID } from "@/lib/club"
+import { prisma } from "@/lib/prisma"
 
 const BodySchema = z.object({
-  tenantId: z.string(),
   opportunityId: z.string(),
 })
 
@@ -18,40 +17,37 @@ export async function POST(request: Request) {
   const parsed = BodySchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: "Invalid body" }, { status: 400 })
 
-  const tenantId = parsed.data.tenantId as TenantId
-
   try {
-    const whoami = await requireTenantAccess(tenantId)
-    const supabase = await createSupabaseServerClient()
-    const { data: oppRow, error } = await supabase
-      .from("opportunities")
-      .select("id,tenant_id,member_id,recommended_actions")
-      .eq("id", parsed.data.opportunityId)
-      .eq("tenant_id", tenantId)
-      .maybeSingle()
-    if (error) throw error
+    const whoami = await requireClubAccess()
+    if (whoami.user.role === "read_only") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+    const oppRow = await prisma.opportunity.findFirst({
+      where: { id: parsed.data.opportunityId, tenantId: CLUB_TENANT_ID },
+      select: { id: true, memberId: true, recommendedActions: true },
+    })
     if (!oppRow) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     const weekOf = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-'W'ww")
-    const actions = (oppRow.recommended_actions ?? []) as any[]
+    const actions = (oppRow.recommendedActions ?? []) as any[]
     const top = actions.slice().sort((a, b) => (b.impactScore ?? 0) - (a.impactScore ?? 0))[0]
     const recommendedActionType = (top?.type ?? "check_in") as any
 
     const item = await createForcedSuccessItem({
       id: randomUUID(),
-      tenantId,
-      memberId: oppRow.member_id,
+      tenantId: CLUB_TENANT_ID,
+      memberId: oppRow.memberId,
       weekOf,
       recommendedActionType,
       recommendedActions: actions as any,
     })
 
     await createAuditEntry({
-      tenantId,
+      tenantId: CLUB_TENANT_ID,
       type: "forced_success_added",
+      actorId: whoami.user.id,
       actor: whoami.user.name,
       actorRole: whoami.user.role,
-      memberId: oppRow.member_id,
+      memberId: oppRow.memberId,
       details: { forcedSuccessId: item.id, opportunityId: oppRow.id, weekOf },
     })
 

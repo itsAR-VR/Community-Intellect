@@ -9,13 +9,13 @@ import {
   getOutcomeFeedbackForTenant,
   submitOutcome as dbSubmitOutcome,
 } from "@/lib/data"
-import { requireWhoami } from "@/lib/auth/whoami"
+import { requireClubAccess } from "@/lib/auth/tenant-access"
+import { CLUB_TENANT_ID } from "@/lib/club"
 
 export async function getOutcomes(memberId?: string): Promise<OutcomeFeedback[]> {
   if (memberId) return getOutcomeFeedbackByMember(memberId)
-  const whoami = await requireWhoami()
-  const results = await Promise.all(whoami.tenants.map((t) => getOutcomeFeedbackForTenant(t.id)))
-  return results.flat()
+  await requireClubAccess()
+  return getOutcomeFeedbackForTenant(CLUB_TENANT_ID)
 }
 
 export async function getInteractionLogs(memberId: string): Promise<InteractionLog[]> {
@@ -37,7 +37,6 @@ export async function submitOutcome(outcome: Omit<OutcomeFeedback, "id" | "creat
 }
 
 export async function getEscalatedOutcomes(): Promise<OutcomeFeedback[]> {
-  const whoami = await requireWhoami()
-  const results = await Promise.all(whoami.tenants.map((t) => getEscalatedOutcomeFeedbackForTenant(t.id)))
-  return results.flat()
+  await requireClubAccess()
+  return getEscalatedOutcomeFeedbackForTenant(CLUB_TENANT_ID)
 }

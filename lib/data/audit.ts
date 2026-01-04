@@ -1,49 +1,43 @@
 import "server-only"
 
 import { randomUUID } from "crypto"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
 import type { AuditEventType, AuditLogEntry, TenantId, UserRole } from "@/lib/types"
-import { nullToUndefined } from "@/lib/data/_utils"
+import { dateToIso, nullToUndefined } from "@/lib/data/_utils"
+import { Prisma } from "@/lib/generated/prisma/client"
+import { prisma } from "@/lib/prisma"
 
 function auditRowToAudit(row: any): AuditLogEntry {
   return {
     id: row.id,
-    tenantId: row.tenant_id,
+    tenantId: row.tenantId,
     type: row.type as AuditEventType,
-    actor: (row.actor_label ?? row.actor_id ?? "Unknown") as string,
-    actorRole: ((row.actor_role ?? "read_only") as UserRole) ?? "read_only",
-    memberId: nullToUndefined(row.member_id),
+    actor: (row.actorLabel ?? row.actorId ?? "Unknown") as string,
+    actorRole: ((row.actorRole ?? "read_only") as UserRole) ?? "read_only",
+    memberId: nullToUndefined(row.memberId),
     details: row.details ?? {},
-    createdAt: row.created_at,
+    createdAt: dateToIso(row.createdAt),
   }
 }
 
 export async function getAuditLogs(tenantId: TenantId): Promise<AuditLogEntry[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("audit_logs")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(auditRowToAudit)
+  const data = await prisma.auditLog.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } })
+  return data.map(auditRowToAudit)
 }
 
-export async function createAuditEntry(input: Omit<AuditLogEntry, "id" | "createdAt">): Promise<AuditLogEntry> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("audit_logs")
-    .insert({
+export async function createAuditEntry(
+  input: Omit<AuditLogEntry, "id" | "createdAt"> & { actorId: string },
+): Promise<AuditLogEntry> {
+  const data = await prisma.auditLog.create({
+    data: {
       id: randomUUID(),
-      tenant_id: input.tenantId,
+      tenantId: input.tenantId,
       type: input.type,
-      actor_role: input.actorRole,
-      actor_label: input.actor,
-      member_id: input.memberId ?? null,
-      details: input.details ?? {},
-    })
-    .select("*")
-    .single()
-  if (error) throw error
+      actorId: input.actorId,
+      actorRole: input.actorRole,
+      actorLabel: input.actor,
+      memberId: input.memberId ?? null,
+      details: (input.details ?? {}) as Prisma.InputJsonValue,
+    },
+  })
   return auditRowToAudit(data)
 }

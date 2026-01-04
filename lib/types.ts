@@ -2,7 +2,8 @@
 // CORE DOMAIN TYPES - B2B CMO Club AI
 // ============================================================================
 
-export type TenantId = "b2b" | "founders"
+// Single-club deployment: keep the DB tenant_id, but the app no longer supports switching.
+export type TenantId = "b2b"
 
 export type MemberStatus = "lead" | "accepted" | "active" | "churned" | "paused"
 export type RiskTier = "green" | "yellow" | "red"
@@ -661,7 +662,7 @@ export interface AuthState {
 
 export interface NotificationItem {
   id: string
-  type: "escalation" | "red_risk" | "blocked_item" | "outcome_due" | "renewal_alert"
+  type: "escalation" | "red_risk" | "blocked_item" | "outcome_due" | "renewal_alert" | "programming_reminder"
   title: string
   description: string
   memberId?: string

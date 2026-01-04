@@ -1,54 +1,43 @@
 import "server-only"
 
-import { createSupabaseServerClient } from "@/lib/supabase/server"
 import type { TenantId, VelocityChallenge, VelocityProof } from "@/lib/types"
+import { dateToIso, dateToYmd } from "@/lib/data/_utils"
+import { prisma } from "@/lib/prisma"
 
 function challengeRowToChallenge(row: any): VelocityChallenge {
   return {
     id: row.id,
-    tenantId: row.tenant_id,
+    tenantId: row.tenantId,
     title: row.title,
     theme: row.theme,
-    participantIds: row.participant_ids ?? [],
-    startDate: row.start_date,
-    endDate: row.end_date,
+    participantIds: row.participantIds ?? [],
+    startDate: dateToYmd(row.startDate),
+    endDate: dateToYmd(row.endDate),
     active: row.active,
-    createdAt: row.created_at,
+    createdAt: dateToIso(row.createdAt),
   }
 }
 
 function proofRowToProof(row: any): VelocityProof {
   return {
     id: row.id,
-    tenantId: row.tenant_id,
-    challengeId: row.challenge_id,
-    memberId: row.member_id,
+    tenantId: row.tenantId,
+    challengeId: row.challengeId,
+    memberId: row.memberId,
     link: row.link,
     description: row.description,
-    createdAt: row.created_at,
+    createdAt: dateToIso(row.createdAt),
   }
 }
 
 export async function getVelocityChallenges(tenantId: TenantId): Promise<VelocityChallenge[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("velocity_challenges")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(challengeRowToChallenge)
+  const data = await prisma.velocityChallenge.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } })
+  return data.map(challengeRowToChallenge)
 }
 
 export async function getVelocityProofs(tenantId: TenantId): Promise<VelocityProof[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("velocity_proofs")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(proofRowToProof)
+  const data = await prisma.velocityProof.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } })
+  return data.map(proofRowToProof)
 }
 
 export async function createVelocityChallenge(input: {
@@ -61,22 +50,18 @@ export async function createVelocityChallenge(input: {
   endDate: string
   active: boolean
 }): Promise<VelocityChallenge> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("velocity_challenges")
-    .insert({
+  const data = await prisma.velocityChallenge.create({
+    data: {
       id: input.id,
-      tenant_id: input.tenantId,
+      tenantId: input.tenantId,
       title: input.title,
       theme: input.theme,
-      participant_ids: input.participantIds,
-      start_date: input.startDate,
-      end_date: input.endDate,
+      participantIds: input.participantIds,
+      startDate: new Date(`${input.startDate}T00:00:00Z`),
+      endDate: new Date(`${input.endDate}T00:00:00Z`),
       active: input.active,
-    })
-    .select("*")
-    .single()
-  if (error) throw error
+    },
+  })
   return challengeRowToChallenge(data)
 }
 
@@ -88,20 +73,15 @@ export async function createVelocityProof(input: {
   link: string
   description: string
 }): Promise<VelocityProof> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("velocity_proofs")
-    .insert({
+  const data = await prisma.velocityProof.create({
+    data: {
       id: input.id,
-      tenant_id: input.tenantId,
-      challenge_id: input.challengeId,
-      member_id: input.memberId,
+      tenantId: input.tenantId,
+      challengeId: input.challengeId,
+      memberId: input.memberId,
       link: input.link,
       description: input.description,
-    })
-    .select("*")
-    .single()
-  if (error) throw error
+    },
+  })
   return proofRowToProof(data)
 }
-

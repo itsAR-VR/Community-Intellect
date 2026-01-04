@@ -1,8 +1,8 @@
 import "server-only"
 
-import { createSupabaseServerClient } from "@/lib/supabase/server"
 import type { NotificationItem, TenantId } from "@/lib/types"
-import { nullToUndefined } from "@/lib/data/_utils"
+import { dateToIso, nullToUndefined } from "@/lib/data/_utils"
+import { prisma } from "@/lib/prisma"
 
 function notificationRowToNotification(row: any): NotificationItem {
   return {
@@ -10,25 +10,22 @@ function notificationRowToNotification(row: any): NotificationItem {
     type: row.type,
     title: row.title,
     description: row.description,
-    memberId: nullToUndefined(row.member_id),
-    actionUrl: nullToUndefined(row.action_url),
+    memberId: nullToUndefined(row.memberId),
+    actionUrl: nullToUndefined(row.actionUrl),
     read: row.read,
-    createdAt: row.created_at,
+    createdAt: dateToIso(row.createdAt),
   }
 }
 
 export async function getNotifications(tenantId: TenantId, unreadOnly?: boolean): Promise<NotificationItem[]> {
-  const supabase = await createSupabaseServerClient()
-  let q = supabase.from("notifications").select("*").eq("tenant_id", tenantId)
-  if (unreadOnly) q = q.eq("read", false)
-  const { data, error } = await q.order("created_at", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(notificationRowToNotification)
+  const data = await prisma.notification.findMany({
+    where: { tenantId, ...(unreadOnly ? { read: false } : {}) },
+    orderBy: { createdAt: "desc" },
+  })
+  return data.map(notificationRowToNotification)
 }
 
 export async function markNotificationRead(id: string): Promise<NotificationItem | null> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase.from("notifications").update({ read: true }).eq("id", id).select("*").maybeSingle()
-  if (error) throw error
+  const data = await prisma.notification.update({ where: { id }, data: { read: true } }).catch(() => null)
   return data ? notificationRowToNotification(data) : null
 }

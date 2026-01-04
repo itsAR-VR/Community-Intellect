@@ -2,14 +2,13 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import type { TenantId, UserRole } from "@/lib/types"
+import type { UserRole } from "@/lib/types"
 import type { Whoami } from "@/lib/auth/whoami"
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
 
 export type AuthContextValue = {
   user: Whoami["user"] | null
-  tenants: Array<{ id: TenantId; name: string }>
-  defaultTenantId: TenantId
+  club: Whoami["club"] | null
   role: UserRole | null
   canEdit: boolean
   isAdmin: boolean
@@ -46,8 +45,7 @@ export function AuthProvider({ initialWhoami, children }: { initialWhoami: Whoam
   const value = React.useMemo<AuthContextValue>(
     () => ({
       user: whoami?.user ?? null,
-      tenants: whoami?.tenants ?? [],
-      defaultTenantId: whoami?.defaultTenantId ?? "b2b",
+      club: whoami?.club ?? null,
       role,
       canEdit,
       isAdmin,

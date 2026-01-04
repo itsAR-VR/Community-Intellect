@@ -1,94 +1,73 @@
 import "server-only"
 
-import { createSupabaseServerClient } from "@/lib/supabase/server"
 import type { IntroRecord, IntroSuggestion, IntroStatus, TenantId } from "@/lib/types"
-import { nullToUndefined } from "@/lib/data/_utils"
+import { dateToIso, dateToIsoOrUndefined, nullToUndefined } from "@/lib/data/_utils"
+import { prisma } from "@/lib/prisma"
 
 function introSuggestionRowToSuggestion(row: any): IntroSuggestion {
   return {
     id: row.id,
-    memberAId: row.member_a_id,
-    memberBId: row.member_b_id,
+    memberAId: row.memberAId,
+    memberBId: row.memberBId,
     rationale: row.rationale,
-    impactScore: row.impact_score,
-    matchingFactIds: row.matching_fact_ids ?? [],
+    impactScore: row.impactScore,
+    matchingFactIds: row.matchingFactIds ?? [],
     dismissed: row.dismissed,
-    createdAt: row.created_at,
+    createdAt: dateToIso(row.createdAt),
   }
 }
 
 function introRecordRowToRecord(row: any): IntroRecord {
   return {
     id: row.id,
-    memberAId: row.member_a_id,
-    memberBId: row.member_b_id,
+    memberAId: row.memberAId,
+    memberBId: row.memberBId,
     status: row.status as IntroStatus,
-    suggestionId: nullToUndefined(row.suggestion_id),
-    messageToA: nullToUndefined(row.message_to_a),
-    messageToB: nullToUndefined(row.message_to_b),
-    outcomeA: nullToUndefined(row.outcome_a),
-    outcomeB: nullToUndefined(row.outcome_b),
-    createdBy: row.created_by,
-    createdAt: row.created_at,
-    completedAt: nullToUndefined(row.completed_at),
+    suggestionId: nullToUndefined(row.suggestionId),
+    messageToA: nullToUndefined(row.messageToA),
+    messageToB: nullToUndefined(row.messageToB),
+    outcomeA: nullToUndefined(row.outcomeA),
+    outcomeB: nullToUndefined(row.outcomeB),
+    createdBy: row.createdBy,
+    createdAt: dateToIso(row.createdAt),
+    completedAt: dateToIsoOrUndefined(row.completedAt),
   }
 }
 
 export async function getIntroSuggestions(tenantId: TenantId): Promise<IntroSuggestion[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("intro_suggestions")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(introSuggestionRowToSuggestion)
+  const data = await prisma.introSuggestion.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: "desc" },
+  })
+  return data.map(introSuggestionRowToSuggestion)
 }
 
 export async function getIntroRecords(tenantId: TenantId): Promise<IntroRecord[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("intro_records")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(introRecordRowToRecord)
+  const data = await prisma.introRecord.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: "desc" },
+  })
+  return data.map(introRecordRowToRecord)
 }
 
 export async function getIntroSuggestionsByMember(tenantId: TenantId, memberId: string): Promise<IntroSuggestion[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("intro_suggestions")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .or(`member_a_id.eq.${memberId},member_b_id.eq.${memberId}`)
-    .order("created_at", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(introSuggestionRowToSuggestion)
+  const data = await prisma.introSuggestion.findMany({
+    where: { tenantId, OR: [{ memberAId: memberId }, { memberBId: memberId }] },
+    orderBy: { createdAt: "desc" },
+  })
+  return data.map(introSuggestionRowToSuggestion)
 }
 
 export async function getIntroRecordsByMember(tenantId: TenantId, memberId: string): Promise<IntroRecord[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("intro_records")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .or(`member_a_id.eq.${memberId},member_b_id.eq.${memberId}`)
-    .order("created_at", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(introRecordRowToRecord)
+  const data = await prisma.introRecord.findMany({
+    where: { tenantId, OR: [{ memberAId: memberId }, { memberBId: memberId }] },
+    orderBy: { createdAt: "desc" },
+  })
+  return data.map(introRecordRowToRecord)
 }
 
 export async function dismissIntroSuggestion(id: string): Promise<IntroSuggestion | null> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("intro_suggestions")
-    .update({ dismissed: true })
-    .eq("id", id)
-    .select("*")
-    .maybeSingle()
-  if (error) throw error
+  const data = await prisma.introSuggestion.update({ where: { id }, data: { dismissed: true } }).catch(() => null)
   return data ? introSuggestionRowToSuggestion(data) : null
 }
 
@@ -103,32 +82,26 @@ export async function createIntroRecord(input: {
   messageToA?: string
   messageToB?: string
 }): Promise<IntroRecord> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("intro_records")
-    .insert({
+  const data = await prisma.introRecord.create({
+    data: {
       id: input.id,
-      tenant_id: input.tenantId,
-      member_a_id: input.memberAId,
-      member_b_id: input.memberBId,
+      tenantId: input.tenantId,
+      memberAId: input.memberAId,
+      memberBId: input.memberBId,
       status: input.status ?? "pending",
-      suggestion_id: input.suggestionId ?? null,
-      message_to_a: input.messageToA ?? null,
-      message_to_b: input.messageToB ?? null,
-      created_by: input.createdBy,
-    })
-    .select("*")
-    .single()
-  if (error) throw error
+      suggestionId: input.suggestionId ?? null,
+      messageToA: input.messageToA ?? null,
+      messageToB: input.messageToB ?? null,
+      createdBy: input.createdBy,
+    },
+  })
   return introRecordRowToRecord(data)
 }
 
 export async function updateIntroStatus(id: string, status: IntroStatus): Promise<IntroRecord | null> {
-  const supabase = await createSupabaseServerClient()
   const patch: Record<string, unknown> = { status }
-  if (status === "completed") patch.completed_at = new Date().toISOString()
+  if (status === "completed") patch.completedAt = new Date()
 
-  const { data, error } = await supabase.from("intro_records").update(patch).eq("id", id).select("*").maybeSingle()
-  if (error) throw error
+  const data = await prisma.introRecord.update({ where: { id }, data: patch }).catch(() => null)
   return data ? introRecordRowToRecord(data) : null
 }

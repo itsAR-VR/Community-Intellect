@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { randomUUID } from "crypto"
-import type { TenantId } from "@/lib/types"
 import { createPerk } from "@/lib/data/perks"
 import { createAuditEntry } from "@/lib/data/audit"
-import { requireTenantAccess } from "@/lib/auth/tenant-access"
+import { requireClubAccess } from "@/lib/auth/tenant-access"
+import { CLUB_TENANT_ID } from "@/lib/club"
 
 const BodySchema = z.object({
-  tenantId: z.string(),
   name: z.string().min(1),
   partnerName: z.string().min(1),
   category: z.string().min(1),
@@ -19,13 +18,13 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
   const parsed = BodySchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: "Invalid body" }, { status: 400 })
-
-  const tenantId = parsed.data.tenantId as TenantId
   try {
-    const whoami = await requireTenantAccess(tenantId)
+    const whoami = await requireClubAccess()
+    if (whoami.user.role === "read_only") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
     const perk = await createPerk({
       id: randomUUID(),
-      tenantId,
+      tenantId: CLUB_TENANT_ID,
       name: parsed.data.name,
       partnerName: parsed.data.partnerName,
       category: parsed.data.category as any,
@@ -35,8 +34,9 @@ export async function POST(request: Request) {
     } as any)
 
     await createAuditEntry({
-      tenantId,
+      tenantId: CLUB_TENANT_ID,
       type: "perk_created",
+      actorId: whoami.user.id,
       actor: whoami.user.name,
       actorRole: whoami.user.role,
       details: { perkId: perk.id },
@@ -48,4 +48,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Server error" }, { status: 500 })
   }
 }
-

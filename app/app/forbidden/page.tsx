@@ -15,14 +15,14 @@ export default function ForbiddenPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            You don’t have access to this tenant. If you believe this is a mistake, ask an admin to grant access.
+            You don’t have access to this dashboard. If you believe this is a mistake, ask an admin to grant access.
           </p>
           <div className="flex gap-2">
             <Button asChild variant="outline" className="bg-transparent flex-1">
               <Link href="/login">Switch account</Link>
             </Button>
             <Button asChild className="flex-1">
-              <Link href="/app/b2b/overview">Go to dashboard</Link>
+              <Link href="/app/overview">Go to dashboard</Link>
             </Button>
           </div>
         </CardContent>
@@ -30,4 +30,3 @@ export default function ForbiddenPage() {
     </div>
   )
 }
-

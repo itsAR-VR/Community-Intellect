@@ -14,35 +14,37 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import type { NotificationItem, TenantId } from "@/lib/types"
+import type { NotificationItem } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
 import { formatDistanceToNow } from "date-fns"
 
-const iconMap = {
+const iconMap: Partial<Record<NotificationItem["type"], React.ComponentType<{ className?: string }>>> = {
   escalation: AlertTriangle,
   red_risk: AlertCircle,
   blocked_item: Clock,
   outcome_due: Clock,
   renewal_alert: Calendar,
+  programming_reminder: Calendar,
 }
 
-const colorMap = {
+const colorMap: Partial<Record<NotificationItem["type"], string>> = {
   escalation: "text-warning",
   red_risk: "text-destructive",
   blocked_item: "text-muted-foreground",
   outcome_due: "text-primary",
   renewal_alert: "text-warning",
+  programming_reminder: "text-primary",
 }
 
-export function Notifications({ tenantId }: { tenantId: TenantId }) {
+export function Notifications() {
   const [notifications, setNotifications] = React.useState<NotificationItem[]>([])
 
   const load = React.useCallback(async () => {
-    const res = await fetch(`/app/api/notifications?tenantId=${encodeURIComponent(tenantId)}`, { cache: "no-store" })
+    const res = await fetch("/app/api/notifications", { cache: "no-store" })
     if (!res.ok) return
     const json = (await res.json()) as { notifications: NotificationItem[] }
     setNotifications(json.notifications ?? [])
-  }, [tenantId])
+  }, [])
 
   React.useEffect(() => {
     void load()
@@ -54,7 +56,7 @@ export function Notifications({ tenantId }: { tenantId: TenantId }) {
     const res = await fetch("/app/api/notifications/mark-read", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ tenantId, notificationId }),
+      body: JSON.stringify({ notificationId }),
     })
     if (!res.ok) {
       toast({ title: "Failed to mark read" })
@@ -94,8 +96,8 @@ export function Notifications({ tenantId }: { tenantId: TenantId }) {
             <div className="p-4 text-center text-sm text-muted-foreground">No notifications</div>
           ) : (
             notifications.map((notification) => {
-              const Icon = iconMap[notification.type]
-              const colorClass = colorMap[notification.type]
+              const Icon = iconMap[notification.type] ?? Bell
+              const colorClass = colorMap[notification.type] ?? "text-muted-foreground"
 
               return (
                 <DropdownMenuItem key={notification.id} asChild>

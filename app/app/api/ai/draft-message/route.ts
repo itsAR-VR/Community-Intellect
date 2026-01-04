@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import type { TenantId } from "@/lib/types"
-import { requireTenantAccess } from "@/lib/auth/tenant-access"
+import { requireClubAccess } from "@/lib/auth/tenant-access"
 import { getOpenAIClient } from "@/lib/ai/client"
 import { modelForTask } from "@/lib/ai/modelRouter"
 import { getFactsByMember, getSignalsByMember, getOpportunitiesByMember } from "@/lib/data"
@@ -9,7 +8,6 @@ import { getFactsByMember, getSignalsByMember, getOpportunitiesByMember } from "
 export const runtime = "nodejs"
 
 const BodySchema = z.object({
-  tenantId: z.string(),
   memberId: z.string(),
   actionType: z.string(),
 })
@@ -25,10 +23,8 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
   const parsed = BodySchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: "Invalid body" }, { status: 400 })
-
-  const tenantId = parsed.data.tenantId as TenantId
   try {
-    const whoami = await requireTenantAccess(tenantId)
+    const whoami = await requireClubAccess()
     if (whoami.user.role === "read_only") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     const [facts, signals, opportunities] = await Promise.all([
@@ -91,4 +87,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Server error" }, { status: 500 })
   }
 }
-

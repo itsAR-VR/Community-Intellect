@@ -6,19 +6,22 @@ import {
   getOpportunities as dbGetOpportunities,
   getOpportunitiesByMember as dbGetOpportunitiesByMember,
 } from "@/lib/data"
-import { requireWhoami } from "@/lib/auth/whoami"
+import { requireClubAccess } from "@/lib/auth/tenant-access"
+import { CLUB_TENANT_ID } from "@/lib/club"
 
 export async function getOpportunities(): Promise<OpportunityItem[]> {
-  const whoami = await requireWhoami()
-  const results = await Promise.all(whoami.tenants.map((t) => dbGetOpportunities(t.id)))
-  return results.flat().filter((o) => !o.dismissed)
+  await requireClubAccess()
+  const items = await dbGetOpportunities(CLUB_TENANT_ID)
+  return items.filter((o) => !o.dismissed)
 }
 
 export async function getOpportunitiesByMember(memberId: string): Promise<OpportunityItem[]> {
+  await requireClubAccess()
   const items = await dbGetOpportunitiesByMember(memberId)
   return items.filter((o) => !o.dismissed)
 }
 
 export async function dismissOpportunity(id: string, dismissedBy: string): Promise<OpportunityItem | null> {
+  await requireClubAccess()
   return dbDismissOpportunity(id, dismissedBy)
 }

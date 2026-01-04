@@ -3,12 +3,11 @@
 import { useAuthContext } from "@/components/auth/auth-provider"
 
 export function useAuth() {
-  const { user, tenants, defaultTenantId, role, canEdit, isAdmin, refresh, logout } = useAuthContext()
+  const { user, club, role, canEdit, isAdmin, refresh, logout } = useAuthContext()
 
   return {
     user,
-    tenants,
-    defaultTenantId,
+    club,
     role,
     canEdit,
     isAdmin,

@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import type { TenantId } from "@/lib/types"
-import { requireTenantAccess } from "@/lib/auth/tenant-access"
+import { requireClubAccess } from "@/lib/auth/tenant-access"
 import { getOpenAIClient } from "@/lib/ai/client"
 import { modelForTask } from "@/lib/ai/modelRouter"
 
 export const runtime = "nodejs"
 
 const BodySchema = z.object({
-  tenantId: z.string(),
   signals: z
     .array(
       z.object({
@@ -29,10 +27,8 @@ export async function POST(request: Request) {
   const parsed = BodySchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: "Invalid body" }, { status: 400 })
 
-  const tenantId = parsed.data.tenantId as TenantId
-
   try {
-    const whoami = await requireTenantAccess(tenantId)
+    const whoami = await requireClubAccess()
     if (whoami.user.role === "read_only") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     const client = getOpenAIClient()
@@ -58,7 +54,6 @@ export async function POST(request: Request) {
           role: "user",
           content: JSON.stringify(
             {
-              tenantId,
               signals: parsed.data.signals,
             },
             null,
@@ -90,4 +85,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Server error" }, { status: 500 })
   }
 }
-

@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { randomUUID } from "crypto"
-import type { SurveyCadence, TenantId } from "@/lib/types"
+import type { SurveyCadence } from "@/lib/types"
 import { sendSurvey } from "@/lib/data/surveys"
 import { createAuditEntry } from "@/lib/data/audit"
-import { requireTenantAccess } from "@/lib/auth/tenant-access"
+import { requireClubAccess } from "@/lib/auth/tenant-access"
+import { CLUB_TENANT_ID } from "@/lib/club"
 
 const BodySchema = z.object({
-  tenantId: z.string(),
   memberIds: z.array(z.string()).min(1),
   cadence: z.enum(["weekly", "biweekly", "monthly", "quarterly"]),
 })
@@ -17,20 +17,21 @@ export async function POST(request: Request) {
   const parsed = BodySchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: "Invalid body" }, { status: 400 })
 
-  const tenantId = parsed.data.tenantId as TenantId
   const cadence = parsed.data.cadence as SurveyCadence
 
   try {
-    const whoami = await requireTenantAccess(tenantId)
+    const whoami = await requireClubAccess()
+    if (whoami.user.role === "read_only") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     const surveys = []
     for (const memberId of parsed.data.memberIds) {
-      const survey = await sendSurvey({ id: `sur_${randomUUID().slice(0, 8)}`, tenantId, memberId, cadence })
+      const survey = await sendSurvey({ id: `sur_${randomUUID().slice(0, 8)}`, tenantId: CLUB_TENANT_ID, memberId, cadence })
       surveys.push(survey)
 
       await createAuditEntry({
-        tenantId,
+        tenantId: CLUB_TENANT_ID,
         type: "survey_sent",
+        actorId: whoami.user.id,
         actor: whoami.user.name,
         actorRole: whoami.user.role,
         memberId,

@@ -1,17 +1,19 @@
 # Community Intellect (B2B CMO Club AI)
 
-Next.js 16 (App Router) + React 19 + Tailwind v4 + shadcn/ui, backed by Supabase (Postgres + Auth + RLS) and OpenAI.
+Next.js 16 (App Router) + React 19 + Tailwind v4 + shadcn/ui, backed by Supabase (Postgres + Auth) + Prisma and OpenAI.
+
+Full product spec and backlog lives in `COMPLETEPROJECTPLAN`.
 
 ## Current status (handoff-ready)
 
-As of `2026-01-03` (git `2fa92fc`), the app supports:
+As of `2026-01-04`, the app supports:
 
-- Tenant-scoped core CRM: members, attention, opportunities, drafts, intros, perks, pods, surveys, resources, forced success.
-- Persisted tenant settings (`public.tenant_settings`) + Settings UI wired to API.
+- Single-club core CRM (still tenant-scoped in DB): members, attention, opportunities, drafts, intros, perks, pods, surveys, resources, forced success.
+- Persisted club settings (`public.tenant_settings`) + Settings UI wired to API.
 - Programming CRUD + “send” actions (server routes) and Surveys send.
 - Velocity analytics backed by `public.velocity_challenges` + `public.velocity_proofs`.
 - Global search includes “Pending Drafts” with correct member context.
-- Admin-only role management RPC: `public.admin_set_user_role(...)`.
+- Admin-only role management for `public.profiles.role`.
 - Live smoke tests via Playwright (`pnpm e2e`) that target the deployed URL (not localhost).
 
 ## Local Setup
@@ -19,58 +21,64 @@ As of `2026-01-03` (git `2fa92fc`), the app supports:
 ```bash
 pnpm install
 cp .env.example .env.local
+pnpm db:migrate
+pnpm db:seed
 pnpm dev
 ```
 
-Open `http://localhost:3000`, sign in at `/login`, and you should land on `/app/b2b/overview`.
+Open `http://localhost:3000`, sign in at `/login`, and you should land on `/app/overview`.
 
-## Supabase (DB + Auth)
+## Supabase (Auth) + Postgres (Prisma)
 
 ### 1) Create a Supabase project
 
 - Create a project in Supabase.
 - Copy your project URL and keys into `.env.local`.
 
-### 2) Apply schema + RLS
+### 2) Configure env vars
 
-- Run these migrations (in order) in the Supabase SQL editor (or via the Supabase CLI if you use it):
-  - `supabase/migrations/0001_init.sql`
-  - `supabase/migrations/0002_fix_chat_threads_created_by_default.sql`
-  - `supabase/migrations/0003_tenant_settings_and_velocity.sql`
+- Supabase Auth (client + server auth checks):
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- Database (Prisma):
+  - `DATABASE_URL` (runtime pooled connection)
+  - `DIRECT_URL` (direct connection for Prisma CLI migrations)
 
-This creates tenant-scoped tables (members, facts, signals, drafts, etc), enables RLS, and adds RBAC policies via `public.profiles` + `public.tenant_users`.
+### 3) Apply DB schema (Prisma migrations)
 
-If you just created/modified tables and PostgREST can’t see them yet, refresh the schema cache:
+Migrations live in `prisma/migrations` and are applied via Prisma (no Supabase SQL editor workflow).
 
-```sql
-NOTIFY pgrst, 'reload schema';
+```bash
+pnpm db:migrate
+pnpm db:generate
 ```
 
-### 3) Seed dev data (from `lib/mock-data.ts`)
+If you point Prisma at an existing Supabase database that already has tables (non-empty schema), `prisma migrate deploy` may fail with `P3005` (“database schema is not empty”). Baseline it once:
+
+```bash
+pnpm prisma migrate resolve --applied 20260104123000_init
+pnpm db:migrate
+```
+
+### 4) Seed dev data (from `lib/mock-data.ts`)
 
 ```bash
 pnpm db:seed
 ```
 
-- Requires `SUPABASE_SERVICE_ROLE_KEY` (server-only) in `.env.local`.
-- Optional: set `SEED_ADMIN_EMAIL` + `SEED_ADMIN_PASSWORD` to create an admin user and grant access to seeded tenants.
+- Optional: set `SEED_ADMIN_EMAIL` + `SEED_ADMIN_PASSWORD` to create an admin user and grant access to the seeded club tenant.
+  - If you set these, you also need `SUPABASE_SERVICE_ROLE_KEY` (server-only) so the seed can create the Supabase Auth user.
 - To wipe and reseed:
 
 ```bash
 pnpm db:seed:force
 ```
 
-## Why SQL migrations (and not “Prisma for everything”?)
+## Data access model (Prisma-first)
 
-This project relies on Postgres features that an ORM typically does not (and should not) manage end-to-end:
-
-- RLS policies, security-definer RPCs, grants/revokes, triggers, and PostgREST behavior are best expressed in SQL.
-- Prisma can be added later for server-side querying convenience, but it won’t replace:
-  - RLS/RBAC policy definitions
-  - `security definer` functions
-  - tenant access checks and grants
-
-If the “manual SQL editor” workflow is the pain point, the best next step is using the Supabase CLI migrations pipeline (apply/rollback in CI), not moving RLS into application code.
+- All application reads/writes go through Prisma (direct Postgres).
+- Supabase is used for Auth only (sessions + login).
+- Because Prisma does not automatically carry Supabase JWT claims into Postgres, the app enforces tenant/role access in application code (via `whoami` + tenant scoping).
 
 ## Auth + RBAC
 
@@ -91,7 +99,7 @@ AI routes live under `app/app/api/ai/*` and are routed by task:
 
 ### Manual QA checklist (live)
 
-- Login (`/login`) and verify tenant landing (`/app/b2b/overview`).
+- Login (`/login`) and verify landing (`/app/overview`).
 - Sidebar navigation: Overview, Members, Attention, Opportunities, Drafts, Forced Success, Intros, Perks, Programming, Pods, Surveys, Resources, AI Chat.
 - Members:
   - Search/filter/sort table.
@@ -130,49 +138,20 @@ Optional:
 - Set all variables from `.env.example` in Vercel Project Settings.
 - Do **not** expose `SUPABASE_SERVICE_ROLE_KEY` or `OPENAI_API_KEY` to the client.
 
-## Implementation plan (next steps)
+## Cron (Vercel Cron Jobs)
 
-### 1) Make integrations real (currently mostly “settings toggles”)
+Cron schedules are configured in `vercel.json` and call server routes under `app/api/cron/*`.
 
-- Define per-tenant integration configs (Slack, LinkedIn, etc.) in `public.tenant_settings` (or dedicated tables for tokens + scopes).
-- Add secure OAuth / token storage patterns (server-only), plus connection status in Settings UI.
-- Add ingestion pipelines (webhooks + polling) and write normalized “events” into tenant-scoped tables.
+- Auth: cron routes require `Authorization: Bearer $CRON_SECRET` (Vercel Cron Jobs automatically send this header).
+- Idempotency/observability: runs are tracked in `public.cron_job_runs` (created by Prisma migrations).
+- Per-tenant enablement (stored in `public.tenant_settings.settings`, editable in Settings UI by admins/community managers):
+  - Surveys autosend: set `automation.surveys.enabled = true` and optionally `automation.surveys.cadence` (`weekly|biweekly|monthly|quarterly`) and `automation.surveys.maxPerRun`.
+  - Programming reminders: set `automation.programmingReminders.enabled = true`.
 
-### 2) Background jobs / cron
+Manual trigger (example):
 
-- Add a scheduler for:
-  - automatic survey sends
-  - recurring “programming” reminders
-  - daily/weekly rollups (attention/opportunities)
-- Use a signed secret (`CRON_SECRET`) + Vercel Cron (or Supabase scheduled functions) to call server routes.
-- Ensure idempotency (job keys) + audit events for every automated action.
+```bash
+curl -sS -H "Authorization: Bearer $CRON_SECRET" "https://community-intellect.vercel.app/api/cron/surveys?dryRun=1"
+```
 
-### 3) Admin & RBAC UX
-
-- Build an admin UI for:
-  - assigning roles (`admin_set_user_role`)
-  - managing `tenant_users` membership
-  - viewing tenant settings and health
-- Expand audit logging coverage for new create/send routes (members/pods/surveys/programming/velocity).
-
-### 4) Product hardening
-
-- Error handling + empty states across every page (especially create/send flows).
-- Rate limiting / abuse protections on AI endpoints.
-- Observability: structured logs, request IDs, and a simple “health” endpoint for checking Supabase + OpenAI connectivity.
-
-### 5) Broaden automated QA
-
-- Add more non-destructive Playwright checks (navigation, key pages load, settings GET, search results render).
-- Gate any data-creating tests behind explicit env flags (similar to `E2E_CHECK_CREATE_DIALOGS`).
-
-## New-agent handoff (copy/paste)
-
-Use this when starting a new chat with another agent:
-
-- Repo: `Community-Intellect` (Next.js App Router, Supabase, OpenAI), latest known good commit `2fa92fc` on `main`.
-- DB: run migrations `supabase/migrations/0001_init.sql`, `0002_fix_chat_threads_created_by_default.sql`, `0003_tenant_settings_and_velocity.sql` (0003 already applied successfully).
-- Env: use `.env.example`; ensure `NEXT_PUBLIC_APP_URL` points at Vercel for live QA; keep `SUPABASE_SERVICE_ROLE_KEY` and `OPENAI_API_KEY` server-only.
-- QA: run `pnpm e2e` (live-only). Optional `E2E_CHECK_CREATE_DIALOGS=1` for dialog checks.
-- Key new features: persisted settings, programming/surveys send, velocity DB tables + UI, global search pending drafts fix, admin role RPC.
-- Next work: real integrations + background jobs/cron + admin UX + hardening + expanded E2E.
+To enable automation without the UI, you can also run the SQL in `supabase/scripts/enable_automation.sql` (optional).

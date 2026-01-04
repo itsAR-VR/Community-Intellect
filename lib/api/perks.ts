@@ -8,7 +8,8 @@ import {
   getPerks as dbGetPerks,
   updatePartnerApplicationStatus as dbUpdatePartnerApplicationStatus,
 } from "@/lib/data"
-import { requireWhoami } from "@/lib/auth/whoami"
+import { requireClubAccess } from "@/lib/auth/tenant-access"
+import { CLUB_TENANT_ID } from "@/lib/club"
 
 export async function getPerks(tenantId: TenantId): Promise<Perk[]> {
   const perks = await dbGetPerks(tenantId)
@@ -16,6 +17,7 @@ export async function getPerks(tenantId: TenantId): Promise<Perk[]> {
 }
 
 export async function getPerkRecommendations(memberId?: string): Promise<PerkRecommendation[]> {
+  await requireClubAccess()
   if (memberId) {
     const member = await getMemberById(memberId)
     if (!member) return []
@@ -23,9 +25,8 @@ export async function getPerkRecommendations(memberId?: string): Promise<PerkRec
     return recs.filter((r) => !r.dismissed)
   }
 
-  const whoami = await requireWhoami()
-  const results = await Promise.all(whoami.tenants.map((t) => dbGetPerkRecommendations(t.id)))
-  return results.flat().filter((r) => !r.dismissed)
+  const recs = await dbGetPerkRecommendations(CLUB_TENANT_ID)
+  return recs.filter((r) => !r.dismissed)
 }
 
 export async function getPartnerApplications(

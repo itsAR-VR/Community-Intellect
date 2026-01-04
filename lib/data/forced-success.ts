@@ -1,58 +1,48 @@
 import "server-only"
 
-import { createSupabaseServerClient } from "@/lib/supabase/server"
 import type { ForcedSuccessItem, TenantId } from "@/lib/types"
-import { nullToUndefined } from "@/lib/data/_utils"
+import { dateToIso, dateToIsoOrUndefined, nullToUndefined } from "@/lib/data/_utils"
+import { prisma } from "@/lib/prisma"
 
 function forcedRowToItem(row: any): ForcedSuccessItem {
   return {
     id: row.id,
-    memberId: row.member_id,
-    weekOf: row.week_of,
-    recommendedActionType: row.recommended_action_type,
-    recommendedActions: (row.recommended_actions ?? []) as ForcedSuccessItem["recommendedActions"],
-    deliveredActionType: nullToUndefined(row.delivered_action_type),
-    deliveredAt: nullToUndefined(row.delivered_at),
-    deliveredBy: nullToUndefined(row.delivered_by),
-    draftId: nullToUndefined(row.draft_id),
+    memberId: row.memberId,
+    weekOf: row.weekOf,
+    recommendedActionType: row.recommendedActionType,
+    recommendedActions: (row.recommendedActions ?? []) as ForcedSuccessItem["recommendedActions"],
+    deliveredActionType: nullToUndefined(row.deliveredActionType),
+    deliveredAt: dateToIsoOrUndefined(row.deliveredAt),
+    deliveredBy: nullToUndefined(row.deliveredBy),
+    draftId: nullToUndefined(row.draftId),
     blocked: row.blocked,
-    blockedReason: nullToUndefined(row.blocked_reason),
-    createdAt: row.created_at,
+    blockedReason: nullToUndefined(row.blockedReason),
+    createdAt: dateToIso(row.createdAt),
   }
 }
 
 export async function getForcedSuccessItems(tenantId: TenantId): Promise<ForcedSuccessItem[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("forced_success_items")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .order("week_of", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(forcedRowToItem)
+  const data = await prisma.forcedSuccessItem.findMany({
+    where: { tenantId },
+    orderBy: { weekOf: "desc" },
+  })
+  return data.map(forcedRowToItem)
 }
 
 export async function getForcedSuccessByWeek(tenantId: TenantId, weekOf: string): Promise<ForcedSuccessItem[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("forced_success_items")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .eq("week_of", weekOf)
-    .order("created_at", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(forcedRowToItem)
+  const data = await prisma.forcedSuccessItem.findMany({
+    where: { tenantId, weekOf },
+    orderBy: { createdAt: "desc" },
+  })
+  return data.map(forcedRowToItem)
 }
 
 export async function getForcedSuccessByMember(memberId: string): Promise<ForcedSuccessItem[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("forced_success_items")
-    .select("*")
-    .eq("member_id", memberId)
-    .order("week_of", { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(forcedRowToItem)
+  const data = await prisma.forcedSuccessItem.findMany({
+    where: { memberId },
+    orderBy: { weekOf: "desc" },
+  })
+  return data.map(forcedRowToItem)
 }
 
 export async function createForcedSuccessItem(input: {
@@ -63,20 +53,16 @@ export async function createForcedSuccessItem(input: {
   recommendedActionType: ForcedSuccessItem["recommendedActionType"]
   recommendedActions: ForcedSuccessItem["recommendedActions"]
 }): Promise<ForcedSuccessItem> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("forced_success_items")
-    .insert({
+  const data = await prisma.forcedSuccessItem.create({
+    data: {
       id: input.id,
-      tenant_id: input.tenantId,
-      member_id: input.memberId,
-      week_of: input.weekOf,
-      recommended_action_type: input.recommendedActionType,
-      recommended_actions: input.recommendedActions,
-    })
-    .select("*")
-    .single()
-  if (error) throw error
+      tenantId: input.tenantId,
+      memberId: input.memberId,
+      weekOf: input.weekOf,
+      recommendedActionType: input.recommendedActionType,
+      recommendedActions: input.recommendedActions as any,
+    },
+  })
   return forcedRowToItem(data)
 }
 
@@ -86,37 +72,33 @@ export async function markForcedSuccessDelivered(input: {
   deliveredBy: string
   draftId?: string
 }): Promise<ForcedSuccessItem | null> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("forced_success_items")
+  const data = await prisma.forcedSuccessItem
     .update({
-      delivered_action_type: input.deliveredActionType ?? null,
-      delivered_at: new Date().toISOString(),
-      delivered_by: input.deliveredBy,
-      draft_id: input.draftId ?? null,
-      blocked: false,
-      blocked_reason: null,
+      where: { id: input.id },
+      data: {
+        deliveredActionType: input.deliveredActionType ?? null,
+        deliveredAt: new Date(),
+        deliveredBy: input.deliveredBy,
+        draftId: input.draftId ?? null,
+        blocked: false,
+        blockedReason: null,
+      },
     })
-    .eq("id", input.id)
-    .select("*")
-    .maybeSingle()
-  if (error) throw error
+    .catch(() => null)
   return data ? forcedRowToItem(data) : null
 }
 
 export async function overrideForcedSuccessBlock(input: { id: string; actorId: string }): Promise<ForcedSuccessItem | null> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("forced_success_items")
+  const data = await prisma.forcedSuccessItem
     .update({
-      blocked: false,
-      blocked_reason: null,
-      delivered_at: new Date().toISOString(),
-      delivered_by: input.actorId,
+      where: { id: input.id },
+      data: {
+        blocked: false,
+        blockedReason: null,
+        deliveredAt: new Date(),
+        deliveredBy: input.actorId,
+      },
     })
-    .eq("id", input.id)
-    .select("*")
-    .maybeSingle()
-  if (error) throw error
+    .catch(() => null)
   return data ? forcedRowToItem(data) : null
 }

@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import type { TenantId } from "@/lib/types"
 import { updateDraft } from "@/lib/data/drafts"
 import { createAuditEntry } from "@/lib/data/audit"
-import { requireTenantAccess } from "@/lib/auth/tenant-access"
+import { requireClubAccess } from "@/lib/auth/tenant-access"
+import { CLUB_TENANT_ID } from "@/lib/club"
 
 const BodySchema = z.object({
-  tenantId: z.string(),
   draftId: z.string(),
 })
 
@@ -15,16 +14,17 @@ export async function POST(request: Request) {
   const parsed = BodySchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: "Invalid body" }, { status: 400 })
 
-  const tenantId = parsed.data.tenantId as TenantId
-
   try {
-    const whoami = await requireTenantAccess(tenantId)
+    const whoami = await requireClubAccess()
+    if (whoami.user.role === "read_only") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
     const draft = await updateDraft(parsed.data.draftId, { status: "discarded" }, whoami.user.id)
     if (!draft) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     await createAuditEntry({
-      tenantId,
+      tenantId: CLUB_TENANT_ID,
       type: "draft_discarded",
+      actorId: whoami.user.id,
       actor: whoami.user.name,
       actorRole: whoami.user.role,
       memberId: draft.memberId,
@@ -37,4 +37,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Server error" }, { status: 500 })
   }
 }
-

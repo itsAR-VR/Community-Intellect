@@ -841,3 +841,15 @@ Deliver:
 * App integration \+ push notifications — later  
 * Automated no-sell enforcement — later
 
+##Additional info
+Key product/ops constraints (B2B CMO Club)
+AI is internal-only in Phase 1 (community team uses dashboard + internal chat; no member-facing bot yet).
+Messaging is sent via the Community Manager + AI SlackBot Slack account (AI drafts; dashboard can auto-send under strict gating).
+Auto-send eligibility rule: only send after the member has replied (or the conversation is marked closed) AND 24+ hours have passed since the last message in that DM thread. 
+Forced-success cadence: minimum one value drop per member per week to them directly (things like perks channel and market insights that go to everyone dont count towards this weekly minimum); priority order: Intros to other members (CM) → Perks (AI) → Resources (AI) → Workshop invite (AI) → Check-in question (CM). (Others to add: tagging relevant members in thread from (CM) in the main group that pertains to the members current needs.)
+2 types of value drops: 1. Forced 1 per week, 2. Trigger-Based.
+LinkedIn monitoring cadence: every 12 hours per member; store summarized analysis (not full content dumps).
+External signals: LinkedIn personal posts + company page posts + job changes + hiring announcements, plus company careers page monitoring. Add indeed jobs posted members' Instagram. X profile.
+Mastermind groups: Community Manager creates groups and channels; AI suggests groupings (target ~1 mastermind per 5 members) AND AGENDA FOR THE Month FOR THE ENTIRE COMMUNITY (every month to start, the AI should take what is most pertinent and being talked about the most within the community channels and hot topics online and make an agenda for every single mastermind group to use right before the next mastermind happens and forward such to them with instructions on what the next mastermind will be about and how to run it - one agenda for the entire community and all masterminds). Every year they get assigned a new group unless they want to stay in the group or switch.
+Workshops: 1-2 per month required at launch (owned and scheduled by Teddy/Rayne/Hugh).
+

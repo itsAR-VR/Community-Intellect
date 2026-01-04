@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { getOpenAIClient } from "@/lib/ai/client"
 import { modelForTask } from "@/lib/ai/modelRouter"
+import { requireClubAccess } from "@/lib/auth/tenant-access"
 
 const BodySchema = z.object({
   text: z.string().min(1),
@@ -33,6 +34,9 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid body" }, { status: 400 })
 
   try {
+    const whoami = await requireClubAccess()
+    if (whoami.user.role === "read_only") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
     const client = getOpenAIClient()
     const model = modelForTask("classify_signal")
 
@@ -87,4 +91,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Server error" }, { status: 500 })
   }
 }
-

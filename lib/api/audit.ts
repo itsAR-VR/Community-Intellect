@@ -34,6 +34,8 @@ export async function getAuditLogs(
   return logs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }
 
-export async function createAuditEntry(entry: Omit<AuditLogEntry, "id" | "createdAt">): Promise<AuditLogEntry> {
+export async function createAuditEntry(
+  entry: Omit<AuditLogEntry, "id" | "createdAt"> & { actorId: string },
+): Promise<AuditLogEntry> {
   return dbCreateAuditEntry(entry)
 }

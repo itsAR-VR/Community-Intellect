@@ -1,35 +1,32 @@
 import "server-only"
 
-import { createSupabaseServerClient } from "@/lib/supabase/server"
 import type { Survey, TenantId } from "@/lib/types"
-import { nullToUndefined } from "@/lib/data/_utils"
+import { dateToIsoOrUndefined, nullToUndefined } from "@/lib/data/_utils"
+import { prisma } from "@/lib/prisma"
 
 function surveyRowToSurvey(row: any): Survey {
   return {
     id: row.id,
-    tenantId: row.tenant_id,
-    memberId: row.member_id,
+    tenantId: row.tenantId,
+    memberId: row.memberId,
     cadence: row.cadence,
-    lastSentAt: nullToUndefined(row.last_sent_at),
-    lastCompletedAt: nullToUndefined(row.last_completed_at),
-    completionRate: row.completion_rate,
+    lastSentAt: dateToIsoOrUndefined(row.lastSentAt),
+    lastCompletedAt: dateToIsoOrUndefined(row.lastCompletedAt),
+    completionRate: row.completionRate,
     responses: (row.responses ?? []) as Survey["responses"],
   }
 }
 
 export async function getSurveys(tenantId: TenantId): Promise<Survey[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase.from("surveys").select("*").eq("tenant_id", tenantId).order("member_id", {
-    ascending: true,
+  const data = await prisma.survey.findMany({
+    where: { tenantId },
+    orderBy: { memberId: "asc" },
   })
-  if (error) throw error
-  return (data ?? []).map(surveyRowToSurvey)
+  return data.map(surveyRowToSurvey)
 }
 
 export async function getSurveyByMember(memberId: string): Promise<Survey | null> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase.from("surveys").select("*").eq("member_id", memberId).maybeSingle()
-  if (error) throw error
+  const data = await prisma.survey.findFirst({ where: { memberId } })
   return data ? surveyRowToSurvey(data) : null
 }
 
@@ -49,42 +46,31 @@ export async function sendSurvey(input: {
   memberId: string
   cadence: Survey["cadence"]
 }): Promise<Survey> {
-  const supabase = await createSupabaseServerClient()
-  const now = new Date().toISOString()
+  const now = new Date()
 
-  const { data: existing, error: existingError } = await supabase
-    .from("surveys")
-    .select("*")
-    .eq("tenant_id", input.tenantId)
-    .eq("member_id", input.memberId)
-    .maybeSingle()
-  if (existingError) throw existingError
+  const existing = await prisma.survey.findFirst({
+    where: { tenantId: input.tenantId, memberId: input.memberId },
+  })
 
   if (existing) {
-    const { data, error } = await supabase
-      .from("surveys")
-      .update({ cadence: input.cadence, last_sent_at: now })
-      .eq("id", existing.id)
-      .select("*")
-      .single()
-    if (error) throw error
-    return surveyRowToSurvey(data)
+    const updated = await prisma.survey.update({
+      where: { id: existing.id },
+      data: { cadence: input.cadence, lastSentAt: now },
+    })
+    return surveyRowToSurvey(updated)
   }
 
-  const { data, error } = await supabase
-    .from("surveys")
-    .insert({
+  const created = await prisma.survey.create({
+    data: {
       id: input.id,
-      tenant_id: input.tenantId,
-      member_id: input.memberId,
+      tenantId: input.tenantId,
+      memberId: input.memberId,
       cadence: input.cadence,
-      last_sent_at: now,
-      last_completed_at: null,
-      completion_rate: 0,
+      lastSentAt: now,
+      lastCompletedAt: null,
+      completionRate: 0,
       responses: [],
-    })
-    .select("*")
-    .single()
-  if (error) throw error
-  return surveyRowToSurvey(data)
+    },
+  })
+  return surveyRowToSurvey(created)
 }

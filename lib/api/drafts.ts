@@ -7,12 +7,12 @@ import {
   getDraftsByMember as dbGetDraftsByMember,
   updateDraft as dbUpdateDraft,
 } from "@/lib/data"
-import { requireWhoami } from "@/lib/auth/whoami"
+import { requireClubAccess } from "@/lib/auth/tenant-access"
+import { CLUB_TENANT_ID } from "@/lib/club"
 
 export async function getDrafts(status?: DraftStatus): Promise<MessageDraft[]> {
-  const whoami = await requireWhoami()
-  const results = await Promise.all(whoami.tenants.map((t) => dbGetDrafts(t.id, status)))
-  return results.flat()
+  await requireClubAccess()
+  return dbGetDrafts(CLUB_TENANT_ID, status)
 }
 
 export async function getDraftsByMember(memberId: string): Promise<MessageDraft[]> {
@@ -24,7 +24,7 @@ export async function getDraftById(id: string): Promise<MessageDraft | null> {
 }
 
 export async function updateDraft(id: string, updates: Partial<MessageDraft>): Promise<MessageDraft | null> {
-  const whoami = await requireWhoami()
+  const whoami = await requireClubAccess()
   return dbUpdateDraft(id, updates, whoami.user.id)
 }
 

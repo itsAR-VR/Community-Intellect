@@ -15,15 +15,11 @@ async function login(page: Page) {
   await page.locator('input[type="email"]').fill(email)
   await page.locator('input[type="password"]').fill(password)
   await page.getByRole("button", { name: /continue to dashboard/i }).click()
-  await page.waitForURL(/\/app\/[^/]+\/overview/, { timeout: 30_000 })
+  await page.waitForURL(/\/app\/overview/, { timeout: 30_000 })
 }
 
 test("smoke: login + key pages render", async ({ page }) => {
   await login(page)
-
-  const tenantMatch = page.url().match(/\/app\/([^/]+)\//)
-  expect(tenantMatch, "expected tenantId in URL after login").not.toBeNull()
-  const tenantId = tenantMatch![1]
 
   const routes = [
     "overview",
@@ -48,19 +44,22 @@ test("smoke: login + key pages render", async ({ page }) => {
   ] as const
 
   for (const route of routes) {
-    await page.goto(`/app/${tenantId}/${route}`)
+    await page.goto(`/app/${route}`)
     await expect(page.getByRole("heading").first()).toBeVisible()
     await expect(page.getByText("Application error")).toHaveCount(0)
   }
+
+  // Spot-check: Settings has the Automation tab (non-destructive)
+  await page.goto("/app/settings")
+  await expect(page.getByRole("tab", { name: /automation/i })).toBeVisible()
 })
 
 test("smoke: create flows open (optional)", async ({ page }) => {
   test.skip(process.env.E2E_CHECK_CREATE_DIALOGS !== "1", "Set E2E_CHECK_CREATE_DIALOGS=1 to validate edit dialogs.")
 
   await login(page)
-  const tenantId = page.url().match(/\/app\/([^/]+)\//)![1]
 
-  await page.goto(`/app/${tenantId}/members`)
+  await page.goto("/app/members")
   const addMember = page.getByRole("button", { name: /add member/i })
   if (await addMember.count()) {
     const btn = addMember.first()
@@ -71,7 +70,7 @@ test("smoke: create flows open (optional)", async ({ page }) => {
     }
   }
 
-  await page.goto(`/app/${tenantId}/pods`)
+  await page.goto("/app/pods")
   const createPod = page.getByRole("button", { name: /create pod/i })
   if (await createPod.count()) {
     const btn = createPod.first()
@@ -82,7 +81,7 @@ test("smoke: create flows open (optional)", async ({ page }) => {
     }
   }
 
-  await page.goto(`/app/${tenantId}/surveys`)
+  await page.goto("/app/surveys")
   const sendSurvey = page.getByRole("button", { name: /send survey/i })
   if (await sendSurvey.count()) {
     const btn = sendSurvey.first()
@@ -93,7 +92,7 @@ test("smoke: create flows open (optional)", async ({ page }) => {
     }
   }
 
-  await page.goto(`/app/${tenantId}/programming`)
+  await page.goto("/app/programming")
   const createMastermind = page.getByRole("button", { name: /create mastermind group/i })
   if (await createMastermind.count()) {
     const btn = createMastermind.first()

@@ -12,13 +12,8 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { Button } from "@/components/ui/button"
-import type { TenantId } from "@/lib/types"
 
-interface GlobalSearchProps {
-  tenantId: TenantId
-}
-
-export function GlobalSearch({ tenantId }: GlobalSearchProps) {
+export function GlobalSearch() {
   const [open, setOpen] = React.useState(false)
   const [members, setMembers] = React.useState<
     Array<{ id: string; firstName: string; lastName: string; email: string; company: { name: string; role: string } }>
@@ -48,7 +43,7 @@ export function GlobalSearch({ tenantId }: GlobalSearchProps) {
   React.useEffect(() => {
     if (!open) return
     void (async () => {
-      const res = await fetch(`/app/api/search?tenantId=${encodeURIComponent(tenantId)}`, { cache: "no-store" })
+      const res = await fetch("/app/api/search", { cache: "no-store" })
       if (!res.ok) return
       const json = (await res.json()) as {
         members: typeof members
@@ -57,7 +52,7 @@ export function GlobalSearch({ tenantId }: GlobalSearchProps) {
       setMembers(json.members ?? [])
       setDrafts(json.drafts ?? [])
     })()
-  }, [open, tenantId])
+  }, [open])
 
   return (
     <>
@@ -83,7 +78,7 @@ export function GlobalSearch({ tenantId }: GlobalSearchProps) {
                 key={member.id}
                 value={`${member.firstName} ${member.lastName} ${member.company.name}`}
                 onSelect={() => {
-                  router.push(`/app/${tenantId}/members/${member.id}`)
+                  router.push(`/app/members/${member.id}`)
                   setOpen(false)
                 }}
               >
@@ -114,7 +109,7 @@ export function GlobalSearch({ tenantId }: GlobalSearchProps) {
                     key={draft.id}
                     value={`draft ${member?.firstName ?? ""} ${member?.lastName ?? ""} ${draft.actionType}`}
                     onSelect={() => {
-                      router.push(`/app/${tenantId}/drafts`)
+                      router.push("/app/drafts")
                       setOpen(false)
                     }}
                   >

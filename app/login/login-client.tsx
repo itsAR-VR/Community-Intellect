@@ -34,10 +34,7 @@ export function LoginClient({ nextUrl }: { nextUrl?: string }) {
         return
       }
 
-      const res = await fetch("/app/api/whoami", { cache: "no-store" })
-      const json = (await res.json()) as { whoami: { defaultTenantId: string } | null }
-      const tenantId = json.whoami?.defaultTenantId ?? "b2b"
-      router.push(`/app/${tenantId}/overview`)
+      router.push("/app/overview")
       router.refresh()
     } catch (e) {
       toast({ title: "Sign-in failed", description: e instanceof Error ? e.message : "Unknown error" })

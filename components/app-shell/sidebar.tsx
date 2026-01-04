@@ -32,6 +32,7 @@ import {
   ChevronRight,
 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { CLUB_NAME } from "@/lib/club"
 
 interface NavItem {
   title: string
@@ -92,14 +93,13 @@ const navGroups: NavGroup[] = [
 ]
 
 interface SidebarProps {
-  tenantId: string
   collapsed?: boolean
   onCollapsedChange?: (collapsed: boolean) => void
 }
 
-export function Sidebar({ tenantId, collapsed = false, onCollapsedChange }: SidebarProps) {
+export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) {
   const pathname = usePathname()
-  const basePath = `/app/${tenantId}`
+  const basePath = "/app"
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -115,7 +115,7 @@ export function Sidebar({ tenantId, collapsed = false, onCollapsedChange }: Side
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-sm">C</span>
               </div>
-              <span className="font-semibold text-sidebar-foreground">CMO Club</span>
+              <span className="font-semibold text-sidebar-foreground">{CLUB_NAME}</span>
             </Link>
           )}
           <Button
@@ -182,10 +182,10 @@ export function Sidebar({ tenantId, collapsed = false, onCollapsedChange }: Side
   )
 }
 
-export function MobileSidebar({ tenantId }: { tenantId: string }) {
+export function MobileSidebar() {
   const [open, setOpen] = React.useState(false)
   const pathname = usePathname()
-  const basePath = `/app/${tenantId}`
+  const basePath = "/app"
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -201,7 +201,7 @@ export function MobileSidebar({ tenantId }: { tenantId: string }) {
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-sm">C</span>
             </div>
-            <span className="font-semibold text-sidebar-foreground">CMO Club</span>
+            <span className="font-semibold text-sidebar-foreground">{CLUB_NAME}</span>
           </Link>
         </div>
 

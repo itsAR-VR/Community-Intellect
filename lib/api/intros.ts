@@ -10,25 +10,23 @@ import {
   getMemberById,
   updateIntroStatus as dbUpdateIntroStatus,
 } from "@/lib/data"
-import { requireWhoami } from "@/lib/auth/whoami"
+import { requireClubAccess } from "@/lib/auth/tenant-access"
+import { CLUB_TENANT_ID } from "@/lib/club"
 
 export async function getIntroSuggestions(): Promise<IntroSuggestion[]> {
-  const whoami = await requireWhoami()
-  const results = await Promise.all(whoami.tenants.map((t) => dbGetIntroSuggestions(t.id)))
-  return results.flat().filter((s) => !s.dismissed)
+  await requireClubAccess()
+  return (await dbGetIntroSuggestions(CLUB_TENANT_ID)).filter((s) => !s.dismissed)
 }
 
 export async function getIntroRecords(status?: IntroStatus): Promise<IntroRecord[]> {
-  const whoami = await requireWhoami()
-  const results = await Promise.all(whoami.tenants.map((t) => dbGetIntroRecords(t.id)))
-  const records = results.flat()
+  await requireClubAccess()
+  const records = await dbGetIntroRecords(CLUB_TENANT_ID)
   return status ? records.filter((r) => r.status === status) : records
 }
 
 export async function getIntrosByMember(memberId: string): Promise<IntroRecord[]> {
-  const whoami = await requireWhoami()
-  const results = await Promise.all(whoami.tenants.map((t) => dbGetIntroRecordsByMember(t.id, memberId)))
-  return results.flat()
+  await requireClubAccess()
+  return dbGetIntroRecordsByMember(CLUB_TENANT_ID, memberId)
 }
 
 export async function createIntro(intro: Omit<IntroRecord, "id" | "createdAt">): Promise<IntroRecord> {

@@ -1,9 +1,20 @@
 import "server-only"
 
-import { createSupabaseServerClient } from "@/lib/supabase/server"
 import type { TenantId, TenantSettings } from "@/lib/types"
+import { dateToIso } from "@/lib/data/_utils"
+import { prisma } from "@/lib/prisma"
 
 export const DEFAULT_TENANT_SETTINGS: TenantSettings["settings"] = {
+  automation: {
+    surveys: {
+      enabled: false,
+      cadence: "weekly",
+      maxPerRun: 50,
+    },
+    programmingReminders: {
+      enabled: false,
+    },
+  },
   integrations: {
     slack: { connected: false, lastSyncAt: null },
     recall: { connected: false, lastSyncAt: null },
@@ -31,35 +42,24 @@ export const DEFAULT_TENANT_SETTINGS: TenantSettings["settings"] = {
 
 function settingsRowToSettings(row: any): TenantSettings {
   return {
-    tenantId: row.tenant_id,
+    tenantId: row.tenantId,
     settings: row.settings ?? {},
-    updatedAt: row.updated_at ?? undefined,
+    updatedAt: row.updatedAt ? dateToIso(row.updatedAt) : undefined,
   }
 }
 
 export async function getTenantSettings(tenantId: TenantId): Promise<TenantSettings> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase.from("tenant_settings").select("tenant_id,settings,updated_at").eq("tenant_id", tenantId).maybeSingle()
-  if (error) throw error
-
-  if (!data) {
-    return { tenantId, settings: { ...DEFAULT_TENANT_SETTINGS } }
-  }
-
-  return {
-    ...settingsRowToSettings(data),
-    settings: { ...DEFAULT_TENANT_SETTINGS, ...(data.settings ?? {}) },
-  }
+  const data = await prisma.tenantSettings.findUnique({ where: { tenantId } })
+  if (!data) return { tenantId, settings: { ...DEFAULT_TENANT_SETTINGS } }
+  const raw = (data.settings ?? {}) as Record<string, unknown>
+  return { ...settingsRowToSettings(data), settings: { ...DEFAULT_TENANT_SETTINGS, ...raw } }
 }
 
 export async function upsertTenantSettings(tenantId: TenantId, settings: Record<string, unknown>): Promise<TenantSettings> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from("tenant_settings")
-    .upsert({ tenant_id: tenantId, settings })
-    .select("tenant_id,settings,updated_at")
-    .single()
-  if (error) throw error
+  const data = await prisma.tenantSettings.upsert({
+    where: { tenantId },
+    create: { tenantId, settings: settings as any },
+    update: { settings: settings as any },
+  })
   return settingsRowToSettings(data)
 }
-
